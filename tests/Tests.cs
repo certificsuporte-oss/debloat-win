@@ -31,6 +31,7 @@ namespace DebloatWin.Tests
             PowerShellParsing();
             BackupRoundTrip();
             Exporter(dumpDir);
+            UpdaterTests();
             if (dumpDir != null) DumpScripts(dumpDir);
 
             Console.WriteLine();
@@ -271,6 +272,85 @@ namespace DebloatWin.Tests
                 Directory.CreateDirectory(dumpDir);
                 File.WriteAllText(Path.Combine(dumpDir, "_exportado-completo.ps1"), ps, new UTF8Encoding(true));
             }
+        }
+
+        // ------------------------------------------------------------------
+        static void UpdaterTests()
+        {
+            Section("Atualização automática");
+            UpdateInfo u = Updater.Parse("{\"versao\":\"1.2.0\",\"url\":\"https://exemplo/DebloatWin.exe\",\"sha256\":\"ab\",\"notas\":\"x\"}");
+            Check(u.Version == "1.2.0" && u.Url.StartsWith("https://") && u.Notes == "x", "lê o versao.json");
+            bool threw = false;
+            try { Updater.Parse("{\"versao\":\"1.2.0\",\"url\":\"http://inseguro/x.exe\",\"sha256\":\"ab\"}"); } catch (FormatException) { threw = true; }
+            Check(threw, "recusa URL sem https");
+            threw = false;
+            try { Updater.Parse("{\"versao\":\"1.2.0\"}"); } catch (FormatException) { threw = true; }
+            Check(threw, "recusa versao.json incompleto");
+
+            Check(Updater.IsNewer("1.2.0", "1.1.0"), "1.2.0 é mais nova que 1.1.0");
+            Check(Updater.IsNewer("1.10.0", "1.9.0"), "compara número, não texto (1.10 > 1.9)");
+            Check(!Updater.IsNewer("1.1.0", "1.1.0"), "mesma versão não atualiza");
+            Check(!Updater.IsNewer("1.0.0", "1.1.0"), "nunca volta para versão anterior");
+            Check(Updater.IsNewer("v1.2", "1.1.0"), "aceita v1.2");
+
+            // Conferência do arquivo baixado: usa o próprio Tests.exe como "programa novo"
+            string self = typeof(Program).Assembly.Location;
+            string selfVer = typeof(Program).Assembly.GetName().Version.ToString();
+            UpdateInfo ok = new UpdateInfo(); ok.Version = selfVer; ok.Sha256 = Updater.Sha256Of(self).ToUpperInvariant(); ok.Url = "https://x";
+            Check(Updater.Verify(self, ok) == null, "aceita arquivo com SHA-256 e versão corretos");
+            UpdateInfo badSha = new UpdateInfo(); badSha.Version = selfVer; badSha.Sha256 = new string('0', 64); badSha.Url = "https://x";
+            Check(Updater.Verify(self, badSha) != null, "recusa SHA-256 diferente");
+            UpdateInfo badVer = new UpdateInfo(); badVer.Version = "99.0.0"; badVer.Sha256 = ok.Sha256; badVer.Url = "https://x";
+            Check(Updater.Verify(self, badVer) != null, "recusa versão diferente da anunciada (evita laço de atualização)");
+            string txt = Path.Combine(Path.GetTempPath(), "dbw-" + Guid.NewGuid().ToString("N") + ".exe");
+            File.WriteAllText(txt, "não sou um programa");
+            UpdateInfo notExe = new UpdateInfo(); notExe.Version = "1.0.0"; notExe.Sha256 = Updater.Sha256Of(txt); notExe.Url = "https://x";
+            Check(Updater.Verify(txt, notExe) != null, "recusa arquivo que não é programa .NET");
+            File.Delete(txt);
+
+            // Troca do executável e limpeza
+            string dir = Path.Combine(Path.GetTempPath(), "dbw-up-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            string exe = Path.Combine(dir, "DebloatWin.exe");
+            File.WriteAllText(exe, "versao velha");
+            File.WriteAllText(Updater.NewPath(exe), "versao nova");
+            Updater.Swap(exe, Updater.NewPath(exe));
+            Check(File.ReadAllText(exe) == "versao nova", "troca o executável pelo novo");
+            Check(File.ReadAllText(Updater.OldPath(exe)) == "versao velha", "guarda o antigo como .old");
+            Check(!File.Exists(Updater.NewPath(exe)), "não sobra .new");
+            // segunda atualização com .old ainda presente
+            File.WriteAllText(Updater.NewPath(exe), "versao mais nova");
+            Updater.Swap(exe, Updater.NewPath(exe));
+            Check(File.ReadAllText(exe) == "versao mais nova", "atualiza de novo mesmo com .old anterior");
+            Updater.CleanupOld(exe);
+            Check(!File.Exists(Updater.OldPath(exe)), "limpa o .old na abertura seguinte");
+            // falha na troca: o original volta
+            File.WriteAllText(exe, "original");
+            bool failed = false;
+            try { Updater.Swap(exe, Path.Combine(dir, "nao-existe.new")); } catch { failed = true; }
+            Check(failed && File.Exists(exe) && File.ReadAllText(exe) == "original", "se a troca falhar, o executável original volta");
+
+            // Download de verdade por HTTP local
+            int port = new Random().Next(20000, 40000);
+            System.Net.HttpListener http = new System.Net.HttpListener();
+            http.Prefixes.Add("http://127.0.0.1:" + port + "/");
+            http.Start();
+            byte[] payload = new byte[300 * 1024];
+            new Random(7).NextBytes(payload);
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                System.Net.HttpListenerContext ctx = http.GetContext();
+                ctx.Response.ContentLength64 = payload.Length;
+                ctx.Response.OutputStream.Write(payload, 0, payload.Length);
+                ctx.Response.Close();
+            });
+            UpdateInfo dl = new UpdateInfo(); dl.Url = "http://127.0.0.1:" + port + "/DebloatWin.exe"; dl.Version = "1.0.0"; dl.Sha256 = "x";
+            string target = Path.Combine(dir, "baixado.bin");
+            long last = 0;
+            Updater.Download(dl, target, 10000, delegate(long got, long total) { last = got; });
+            http.Stop();
+            Check(File.Exists(target) && new FileInfo(target).Length == payload.Length && last == payload.Length, "baixa o arquivo inteiro com progresso");
+            try { Directory.Delete(dir, true); } catch { }
         }
 
         // ------------------------------------------------------------------

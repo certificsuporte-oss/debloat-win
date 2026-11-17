@@ -2,6 +2,9 @@
 //
 //   DebloatWin.exe /preset basico|rigido|extremo [/semponto] [/exportar arquivo.ps1] [/ids id1,id2]
 //
+// Ao abrir a tela, o programa procura versão nova (Updater.ManifestUrl) e se atualiza sozinho.
+// Para desligar: HKCU\Software\DebloatWin, DWORD AtualizarAuto = 0. A linha de comando não se atualiza.
+//
 //   /preset     marca os ajustes do preset (aplicáveis a este Windows)
 //   /ids        lista de ids a aplicar (soma com o preset, se houver)
 //   /semponto   não cria ponto de restauração
@@ -24,6 +27,17 @@ namespace DebloatWin.App
         [STAThread]
         static int Main(string[] args)
         {
+            string exePath = Application.ExecutablePath;
+
+            // "/atualizado <versão anterior>": aberto pela própria atualização automática
+            string updatedFrom = null;
+            if (args.Length > 0 && args[0].Equals("/atualizado", StringComparison.OrdinalIgnoreCase))
+            {
+                updatedFrom = args.Length > 1 ? args[1] : "?";
+                args = new string[0];
+            }
+
+            // Linha de comando: sem atualização automática, para o resultado ser previsível em scripts
             if (args.Length > 0) return RunCommandLine(args);
 
             Application.EnableVisualStyles();
@@ -31,7 +45,19 @@ namespace DebloatWin.App
             Theme.SetMode(Theme.LoadMode(), false);
             Application.ThreadException += delegate(object s, ThreadExceptionEventArgs e) { ShowCrash(e.Exception); };
             AppDomain.CurrentDomain.UnhandledException += delegate(object s, UnhandledExceptionEventArgs e) { ShowCrash(e.ExceptionObject as Exception); };
-            Application.Run(new MainForm(new WindowsSystem()));
+
+            AutoUpdate.CleanupAfterUpdate(exePath);
+            string notice = null;
+            if (updatedFrom != null)
+                notice = "Atualizado para a versão " + AppInfo.Version + ".";
+            else if (AutoUpdate.Enabled)
+            {
+                string failure;
+                if (AutoUpdate.Run(exePath, out failure)) return 0; // a versão nova já foi aberta
+                notice = failure;
+            }
+
+            Application.Run(new MainForm(new WindowsSystem(), notice));
             return 0;
         }
 

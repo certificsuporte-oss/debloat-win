@@ -42,7 +42,9 @@ namespace DebloatWin.App
         ToolTip tips = new ToolTip();
         Timer searchTimer;
 
-        public MainForm(ISystem sys)
+        public MainForm(ISystem sys) : this(sys, null) { }
+
+        public MainForm(ISystem sys, string startupNotice)
         {
             Theme.Init(this);
             engine = new Engine(sys, Engine.DefaultDataDir());
@@ -93,6 +95,7 @@ namespace DebloatWin.App
 
             SelectCategory("todos");
             UpdateSummary();
+            if (startupNotice != null) Flash(startupNotice);
 
             // No modo "Sistema", acompanha o Windows quando o usuário troca claro/escuro
             systemThemeHandler = delegate(object s, UserPreferenceChangedEventArgs e)

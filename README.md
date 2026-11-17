@@ -6,6 +6,25 @@ Programa para Windows 10 e 11 que remove apps pré-instalados, reduz telemetria 
 - Pede permissão de administrador ao abrir.
 - Catálogo próprio de 119 ajustes em 8 categorias, escrito do zero (não usa código do WinScript nem de outro projeto).
 
+## Baixar
+
+Link direto, sempre a versão mais nova:
+**https://github.com/certificsuporte-oss/debloat-win/raw/main/atualizacao/DebloatWin.exe**
+
+## Atualização automática
+
+Ao abrir, o programa consulta `atualizacao/versao.json` neste repositório. Se houver versão mais nova, ele baixa o `.exe`, confere o SHA-256 e a versão do arquivo, troca o executável e reabre já atualizado. Sem internet, ou se algo der errado, ele abre a versão atual normalmente e registra o motivo em `C:\ProgramData\DebloatWin\logs\atualizacao.log`.
+
+- Nunca volta para uma versão anterior e recusa arquivo com SHA-256 ou versão diferentes do anunciado.
+- A linha de comando (`/preset` etc.) não se atualiza, para o resultado ser previsível em scripts.
+- Para desligar num PC: `HKCU\Software\DebloatWin`, DWORD `AtualizarAuto` = `0`.
+
+### Publicar uma versão nova
+
+1. Suba a versão em `src/Core/Model.cs` (`AppInfo.Version`), `res/app.rc`, `res/app.manifest` e `src/App/AssemblyInfo.cs`.
+2. Rode `./publicar.sh "o que mudou"`: compila, testa, grava `atualizacao/DebloatWin.exe` e `atualizacao/versao.json` em dois commits.
+3. `git push origin main`. Os programas nos clientes se atualizam na próxima vez que forem abertos.
+
 ## Como usar
 
 1. Abra o `DebloatWin.exe` e aceite o pedido de administrador.
@@ -100,7 +119,7 @@ Rode os testes (`./build.sh`): eles conferem ids únicos, presets, avisos em aju
 
 ## Situação dos testes
 
-- 1.515 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação).
+- 1.535 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática).
 - 59 scripts PowerShell gerados passam na checagem estrutural (chaves, parênteses, aspas).
 - Tela testada no Mono com Windows 10 e 11 simulados.
 - **Ainda não foi executado num Windows real.** Teste primeiro numa máquina virtual ou num PC de teste antes de usar em clientes.
