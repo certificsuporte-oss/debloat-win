@@ -181,7 +181,8 @@ namespace DebloatWin.Core
 
                 string head = tr.Outcome == ActionOutcome.Ok ? "[OK]    " : tr.Outcome == ActionOutcome.Skipped ? "[IGNOR] " : "[FALHA] ";
                 log.AppendLine(head + t.Title + "  (" + t.Id + ")");
-                foreach (string m in tr.Messages) log.AppendLine("          " + m);
+                foreach (string m in tr.Messages)
+                    log.AppendLine("          " + m.Replace("\r", "").TrimEnd('\n').Replace("\n", Environment.NewLine + "            "));
                 if (TweakDone != null) TweakDone(tr);
                 done++;
             }

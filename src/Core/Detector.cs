@@ -74,7 +74,7 @@ namespace DebloatWin.Core
             "$script:dbwAppx = $null\n" +
             "function Get-DbwAppx {\n" +
             "  if ($null -eq $script:dbwAppx) {\n" +
-            "    $script:dbwAppx = @(Get-AppxPackage -AllUsers -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) +\n" +
+            "    $script:dbwAppx = @(Get-AppxPackage -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) +\n" +
             "                      @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | ForEach-Object { $_.DisplayName })\n" +
             "  }\n" +
             "  return $script:dbwAppx\n" +

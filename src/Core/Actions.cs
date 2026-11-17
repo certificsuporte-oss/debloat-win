@@ -373,7 +373,7 @@ namespace DebloatWin.Core
         }
     }
 
-    /// <summary>Remove apps da Store (para todos os usuários e da imagem). Não tem desfazer.</summary>
+    /// <summary>Remove apps da Store (da imagem e dos usuários). Não tem desfazer.</summary>
     public class AppxRemoveAction : PsAction
     {
         public readonly string[] Packages; // nomes ou padrões com *, ex.: Microsoft.BingNews
@@ -385,19 +385,46 @@ namespace DebloatWin.Core
             return "Remover apps: " + string.Join(", ", Packages);
         }
 
+        // Primeira linha da mensagem + código HRESULT (as mensagens do Windows são enormes)
+        internal const string ShortErrorFn =
+            "function Get-DbwShortError($e) {\n" +
+            "  if (-not $e) { return 'continua instalado' }\n" +
+            "  $m = ([string]$e.Exception.Message -split \"`r?`n\" | Where-Object { $_.Trim() } | Select-Object -First 1)\n" +
+            "  $c = $e.Exception.HResult\n" +
+            "  if ($c) { $m = $m + ' (0x' + ('{0:X8}' -f $c) + ')' }\n" +
+            "  return $m\n" +
+            "}\n";
+
         protected override string ApplyScript()
         {
-            return "$removed = 0; $errors = @()\n" +
+            // Ordem: 1) tira da imagem (novos usuários não recebem), 2) tenta remover de todos os usuários,
+            // 3) se o Windows recusar (comum no Win10 22H2: 0x80070002), remove do usuário atual e de cada usuário.
+            // Só conta como removido se o app sumiu do usuário atual.
+            return ShortErrorFn +
+                   "$removed = 0; $errors = @()\n" +
                    "foreach ($p in " + Ps.List(Packages) + ") {\n" +
-                   "  $pk = @(Get-AppxPackage -AllUsers -Name $p -ErrorAction SilentlyContinue)\n" +
-                   "  foreach ($x in $pk) {\n" +
-                   "    try { Remove-AppxPackage -Package $x.PackageFullName -AllUsers -ErrorAction Stop; $removed++; Write-Output \"Removido: $($x.Name)\" }\n" +
-                   "    catch { $errors += \"$($x.Name): $($_.Exception.Message)\" }\n" +
-                   "  }\n" +
-                   "  $prov = @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like $p })\n" +
-                   "  foreach ($x in $prov) {\n" +
+                   "  foreach ($x in @(Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like $p })) {\n" +
                    "    try { Remove-AppxProvisionedPackage -Online -PackageName $x.PackageName -ErrorAction Stop | Out-Null; $removed++; Write-Output \"Removido da imagem: $($x.DisplayName)\" }\n" +
-                   "    catch { $errors += \"$($x.DisplayName) (imagem): $($_.Exception.Message)\" }\n" +
+                   "    catch { $errors += \"$($x.DisplayName) (imagem): $(Get-DbwShortError $_)\" }\n" +
+                   "  }\n" +
+                   "  foreach ($x in @(Get-AppxPackage -AllUsers -Name $p -ErrorAction SilentlyContinue)) {\n" +
+                   "    $full = $x.PackageFullName; $last = $null; $all = $false\n" +
+                   "    try { Remove-AppxPackage -Package $full -AllUsers -ErrorAction Stop; $all = $true } catch { $last = $_ }\n" +
+                   "    if (-not $all) {\n" +
+                   "      try { Remove-AppxPackage -Package $full -ErrorAction Stop } catch { $last = $_ }\n" +
+                   "      foreach ($u in @($x.PackageUserInformation)) {\n" +
+                   "        try { Remove-AppxPackage -Package $full -User $u.UserSecurityId.Sid -ErrorAction Stop } catch { }\n" +
+                   "      }\n" +
+                   "    }\n" +
+                   "    $mine = @(Get-AppxPackage -Name $x.Name -ErrorAction SilentlyContinue | Where-Object { $_.PackageFullName -eq $full })\n" +
+                   "    if ($mine.Count -gt 0) { $errors += \"$($x.Name): $(Get-DbwShortError $last)\"; continue }\n" +
+                   "    $removed++\n" +
+                   "    Write-Output \"Removido: $($x.Name)\"\n" +
+                   "    if (-not $all) {\n" +
+                   "      $others = @(Get-AppxPackage -AllUsers -Name $x.Name -ErrorAction SilentlyContinue | Where-Object {\n" +
+                   "        $_.PackageFullName -eq $full -and @($_.PackageUserInformation | Where-Object { [string]$_.InstallState -eq 'Installed' }).Count -gt 0 })\n" +
+                   "      if ($others.Count -gt 0) { Write-Output \"Aviso: $($x.Name) ainda está instalado para outro usuário deste PC\" }\n" +
+                   "    }\n" +
                    "  }\n" +
                    "}\n" +
                    "if ($errors.Count -gt 0) { throw ($errors -join ' | ') }\n" +
@@ -408,7 +435,7 @@ namespace DebloatWin.Core
 
         public override string DetectScript()
         {
-            // Get-DbwAppx: lista em cache de apps instalados e da imagem (ver Detector)
+            // Get-DbwAppx: apps do usuário atual e da imagem, em cache (ver Detector)
             return "$all = Get-DbwAppx; $found = $false\n" +
                    "foreach ($p in " + Ps.List(Packages) + ") { if (@($all | Where-Object { $_ -like $p }).Count -gt 0) { $found = $true } }\n" +
                    "if ($found) { '0' } else { '1' }";

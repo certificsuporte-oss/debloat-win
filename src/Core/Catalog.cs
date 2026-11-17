@@ -226,16 +226,22 @@ namespace DebloatWin.Core
               "Desinstala o OneDrive, impede a reinstalação e tira o ícone do Explorer.")
               .Warn("Arquivos que estão só na nuvem deixam de sincronizar. Confirme se o usuário não usa o OneDrive.")
               .Cmd("Desinstalar o OneDrive",
+                   "function Get-DbwOneDriveExe { @(\"$env:LOCALAPPDATA\\Microsoft\\OneDrive\\OneDrive.exe\", \"$env:ProgramFiles\\Microsoft OneDrive\\OneDrive.exe\", \"${env:ProgramFiles(x86)}\\Microsoft OneDrive\\OneDrive.exe\") | Where-Object { Test-Path -LiteralPath $_ } }\n" +
+                   "if (@(Get-DbwOneDriveExe).Count -eq 0) { Write-Output 'SKIP:OneDrive não está instalado'; return }\n" +
                    "Get-Process OneDrive -ErrorAction SilentlyContinue | Stop-Process -Force\n" +
                    "$setups = @()\n" +
-                   "$setups += Get-ChildItem \"$env:SystemRoot\\System32\\OneDriveSetup.exe\",\"$env:SystemRoot\\SysWOW64\\OneDriveSetup.exe\" -ErrorAction SilentlyContinue\n" +
                    "$setups += Get-ChildItem \"$env:LOCALAPPDATA\\Microsoft\\OneDrive\\*\\OneDriveSetup.exe\",\"$env:ProgramFiles\\Microsoft OneDrive\\*\\OneDriveSetup.exe\" -ErrorAction SilentlyContinue\n" +
-                   "if ($setups.Count -eq 0) { Write-Output 'SKIP:OneDrive não encontrado (já removido?)'; return }\n" +
+                   "$setups += Get-ChildItem \"$env:SystemRoot\\System32\\OneDriveSetup.exe\",\"$env:SystemRoot\\SysWOW64\\OneDriveSetup.exe\" -ErrorAction SilentlyContinue\n" +
                    "foreach ($s in $setups) {\n" +
+                   "  if (@(Get-DbwOneDriveExe).Count -eq 0) { break }\n" +
+                   "  # o desinstalador anterior pode ter apagado esta pasta\n" +
+                   "  if (-not (Test-Path -LiteralPath $s.FullName)) { continue }\n" +
                    "  $arg = '/uninstall'\n" +
                    "  if ($s.FullName -like \"$env:ProgramFiles*\") { $arg = '/uninstall /allusers' }\n" +
                    "  Start-Process -FilePath $s.FullName -ArgumentList $arg -Wait\n" +
+                   "  Start-Sleep -Seconds 2\n" +
                    "}\n" +
+                   "if (@(Get-DbwOneDriveExe).Count -gt 0) { throw 'O OneDrive continua instalado (o desinstalador não removeu o OneDrive.exe)' }\n" +
                    "Write-Output 'OneDrive desinstalado'\n")
               .Detect("$p = @(\"$env:LOCALAPPDATA\\Microsoft\\OneDrive\\OneDrive.exe\", \"$env:ProgramFiles\\Microsoft OneDrive\\OneDrive.exe\", \"${env:ProgramFiles(x86)}\\Microsoft OneDrive\\OneDrive.exe\") | Where-Object { Test-Path $_ }\n" +
                       "if (@($p).Count -gt 0) { '0' } else { '1' }")

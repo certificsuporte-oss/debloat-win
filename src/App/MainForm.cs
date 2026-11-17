@@ -745,7 +745,7 @@ namespace DebloatWin.App
                     string head = tr.Outcome == ActionOutcome.Ok ? "[OK]     " : tr.Outcome == ActionOutcome.Skipped ? "[IGNOR.] " : "[FALHA]  ";
                     log(head + tr.Tweak.Title);
                     if (tr.Outcome != ActionOutcome.Ok)
-                        foreach (string m in tr.Messages) if (!m.StartsWith("ok:")) log("           " + m);
+                        foreach (string m in tr.Messages) if (!m.StartsWith("ok:")) log("           " + m.Replace("\r", "").TrimEnd('\n').Replace("\n", "\n             "));
                 };
                 result = engine.Apply(sel, false, win.ToString(), progress);
                 engine.TweakDone = null;
