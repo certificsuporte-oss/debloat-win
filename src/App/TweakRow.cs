@@ -106,24 +106,25 @@ namespace DebloatWin.App
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            // Já aplicado: cartão levemente verde. Parcial: levemente amarelo. Marcado: azul, como os outros.
             Color bg = !Applicable ? Theme.Surface : isChecked ? Theme.Selected : hover ? Theme.RowHover : Theme.Surface;
+            Color border = isChecked ? Theme.Accent : Theme.Border;
+            if (Applicable && !isChecked && status != null)
+            {
+                if (status.State == TweakState.Applied) { bg = hover ? Theme.AppliedHover : Theme.AppliedBg; border = Theme.AppliedBorder; }
+                else if (status.State == TweakState.Partial) { bg = hover ? Theme.PartialHover : Theme.PartialBg; border = Theme.PartialBorder; }
+            }
             g.Clear(Parent != null ? Parent.BackColor : Theme.Back);
             Rectangle card = new Rectangle(0, 0, Width - 1, Height - 1);
             using (System.Drawing.Drawing2D.GraphicsPath p = Theme.Rounded(card, Theme.S(8)))
             {
                 using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
-                using (Pen pen = new Pen(isChecked ? Theme.Accent : Theme.Border, isChecked ? 1.5f : 1f)) g.DrawPath(pen, p);
+                using (Pen pen = new Pen(border, isChecked ? 1.5f : 1f)) g.DrawPath(pen, p);
             }
 
             // caixa de seleção (desenhada à mão: fica certa no tema escuro)
             int cs = Theme.CheckSize;
-            CheckTone tone = CheckTone.Normal;
-            if (Applicable && status != null)
-            {
-                if (status.State == TweakState.Applied) tone = CheckTone.Applied;
-                else if (status.State == TweakState.Partial) tone = CheckTone.Partial;
-            }
-            Theme.DrawCheck(g, new Rectangle(PadX, PadY + Math.Max(0, (titleHeight - cs) / 2), cs, cs), isChecked, Applicable, hover, tone);
+            Theme.DrawCheck(g, new Rectangle(PadX, PadY + Math.Max(0, (titleHeight - cs) / 2), cs, cs), isChecked, Applicable, hover);
 
             Color title = Applicable ? Theme.Text : Theme.Disabled;
             Color muted = Applicable ? Theme.Muted : Theme.Disabled;

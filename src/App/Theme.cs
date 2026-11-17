@@ -30,7 +30,8 @@ namespace DebloatWin.App
         // ---- paleta atual (trocada por Apply) ----
         public static Color Back, Surface, Border, Text, Muted, Accent, AccentHover, AccentSoft, Selected,
             RowHover, Disabled, Input, Link,
-            RiskLowFg, RiskLowBg, RiskMidFg, RiskMidBg, RiskHighFg, RiskHighBg, TagFg, TagBg;
+            RiskLowFg, RiskLowBg, RiskMidFg, RiskMidBg, RiskHighFg, RiskHighBg, TagFg, TagBg,
+            AppliedBg, AppliedHover, AppliedBorder, PartialBg, PartialHover, PartialBorder;
 
         public static bool Dark { get; private set; }
         public static ThemeMode Mode { get; private set; }
@@ -62,6 +63,8 @@ namespace DebloatWin.App
                 RiskMidFg = Color.FromArgb(154, 103, 0); RiskMidBg = Color.FromArgb(255, 248, 197);
                 RiskHighFg = Color.FromArgb(207, 34, 46); RiskHighBg = Color.FromArgb(255, 235, 233);
                 TagFg = Color.FromArgb(87, 96, 106); TagBg = Color.FromArgb(234, 238, 242);
+                AppliedBg = Color.FromArgb(244, 251, 246); AppliedHover = Color.FromArgb(236, 248, 240); AppliedBorder = Color.FromArgb(178, 222, 190);
+                PartialBg = Color.FromArgb(255, 252, 238); PartialHover = Color.FromArgb(255, 248, 224); PartialBorder = Color.FromArgb(232, 214, 140);
             }
             else
             {
@@ -82,6 +85,8 @@ namespace DebloatWin.App
                 RiskMidFg = Color.FromArgb(227, 179, 65); RiskMidBg = Color.FromArgb(58, 48, 22);
                 RiskHighFg = Color.FromArgb(255, 123, 114); RiskHighBg = Color.FromArgb(69, 32, 31);
                 TagFg = Color.FromArgb(174, 182, 192); TagBg = Color.FromArgb(46, 50, 56);
+                AppliedBg = Color.FromArgb(31, 43, 36); AppliedHover = Color.FromArgb(35, 49, 41); AppliedBorder = Color.FromArgb(48, 92, 62);
+                PartialBg = Color.FromArgb(43, 40, 30); PartialHover = Color.FromArgb(49, 45, 33); PartialBorder = Color.FromArgb(96, 82, 38);
             }
         }
 
