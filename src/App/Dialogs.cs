@@ -12,7 +12,7 @@ using DebloatWin.Core;
 namespace DebloatWin.App
 {
     /// <summary>Roda um trabalho em segundo plano mostrando progresso e log ao vivo.</summary>
-    public class ProgressForm : Form
+    public class ProgressForm : ThemedForm
     {
         public delegate string Work(ProgressHandler progress, Action<string> log);
 
@@ -31,9 +31,6 @@ namespace DebloatWin.App
         {
             this.work = work;
             Text = title;
-            AutoScaleMode = AutoScaleMode.None;
-            Font = Theme.Body;
-            BackColor = Theme.Surface;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(Theme.S(720), Theme.S(480));
             MinimumSize = new Size(Theme.S(520), Theme.S(360));
@@ -41,7 +38,7 @@ namespace DebloatWin.App
             ShowIcon = false;
 
             Label head = new Label();
-            head.Text = title; head.Font = Theme.Subtitle; head.ForeColor = Theme.Text;
+            head.Text = title; head.Font = Theme.Subtitle; head.ForeColor = Theme.Text; head.BackColor = Theme.Surface;
             head.Dock = DockStyle.Top; head.Height = Theme.S(36); head.Padding = new Padding(Theme.S(16), Theme.S(10), 0, 0);
 
             current = new Label();
@@ -59,7 +56,8 @@ namespace DebloatWin.App
             logWrap.Dock = DockStyle.Fill; logWrap.Padding = new Padding(Theme.S(16), Theme.S(6), Theme.S(16), Theme.S(6));
             logBox = new TextBox();
             logBox.Multiline = true; logBox.ReadOnly = true; logBox.ScrollBars = ScrollBars.Vertical;
-            logBox.Dock = DockStyle.Fill; logBox.BackColor = Theme.Back; logBox.BorderStyle = BorderStyle.FixedSingle;
+            logBox.Dock = DockStyle.Fill; logBox.BackColor = Theme.Input; logBox.ForeColor = Theme.Text; logBox.BorderStyle = BorderStyle.None;
+            Native.Track(logBox);
             logBox.Font = new Font(FontFamily.GenericMonospace, 9f);
             logBox.WordWrap = true;
             logWrap.Controls.Add(logBox);
@@ -154,14 +152,11 @@ namespace DebloatWin.App
     }
 
     /// <summary>Mostra exatamente o que um ajuste faz.</summary>
-    public class DetailsForm : Form
+    public class DetailsForm : ThemedForm
     {
         public DetailsForm(Tweak t)
         {
             Text = t.Title;
-            AutoScaleMode = AutoScaleMode.None;
-            Font = Theme.Body;
-            BackColor = Theme.Surface;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(Theme.S(760), Theme.S(520));
             MinimizeBox = false; ShowInTaskbar = false; ShowIcon = false;
@@ -193,7 +188,8 @@ namespace DebloatWin.App
 
             TextBox box = new TextBox();
             box.Multiline = true; box.ReadOnly = true; box.ScrollBars = ScrollBars.Both; box.WordWrap = false;
-            box.Dock = DockStyle.Fill; box.BorderStyle = BorderStyle.None; box.BackColor = Theme.Surface;
+            box.Dock = DockStyle.Fill; box.BorderStyle = BorderStyle.None; box.BackColor = Theme.Surface; box.ForeColor = Theme.Text;
+            Native.Track(box);
             box.Font = new Font(FontFamily.GenericMonospace, 9.5f);
             box.Text = sb.ToString().Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
             box.Select(0, 0);
@@ -219,7 +215,7 @@ namespace DebloatWin.App
     }
 
     /// <summary>Lista as sessões aplicadas e permite desfazer.</summary>
-    public class HistoryForm : Form
+    public class HistoryForm : ThemedForm
     {
         readonly Engine engine;
         readonly ListView list;
@@ -231,9 +227,6 @@ namespace DebloatWin.App
         {
             this.engine = engine;
             Text = "Histórico e desfazer";
-            AutoScaleMode = AutoScaleMode.None;
-            Font = Theme.Body;
-            BackColor = Theme.Surface;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(Theme.S(820), Theme.S(560));
             MinimumSize = new Size(Theme.S(600), Theme.S(420));
@@ -246,7 +239,33 @@ namespace DebloatWin.App
 
             list = new ListView();
             list.View = View.Details; list.FullRowSelect = true; list.MultiSelect = false; list.HideSelection = false;
-            list.Dock = DockStyle.Top; list.Height = Theme.S(200); list.BorderStyle = BorderStyle.FixedSingle;
+            list.Dock = DockStyle.Top; list.Height = Theme.S(200); list.BorderStyle = BorderStyle.None;
+            list.BackColor = Theme.Input; list.ForeColor = Theme.Text;
+            Native.Track(list);
+            // desenhada à mão para cabeçalho e seleção ficarem certos no tema escuro
+            list.OwnerDraw = true;
+            list.DrawColumnHeader += delegate(object s, DrawListViewColumnHeaderEventArgs e)
+            {
+                using (SolidBrush b = new SolidBrush(Theme.Surface)) e.Graphics.FillRectangle(b, e.Bounds);
+                using (Pen p = new Pen(Theme.Border))
+                {
+                    e.Graphics.DrawLine(p, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right, e.Bounds.Bottom - 1);
+                    e.Graphics.DrawLine(p, e.Bounds.Right - 1, e.Bounds.Top + Theme.S(4), e.Bounds.Right - 1, e.Bounds.Bottom - Theme.S(4));
+                }
+                Rectangle tr = new Rectangle(e.Bounds.X + Theme.S(6), e.Bounds.Y, e.Bounds.Width - Theme.S(8), e.Bounds.Height);
+                TextRenderer.DrawText(e.Graphics, e.Header.Text, Theme.SmallBold, tr, Theme.Muted,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+            };
+            list.DrawItem += delegate(object s, DrawListViewItemEventArgs e) { };
+            list.DrawSubItem += delegate(object s, DrawListViewSubItemEventArgs e)
+            {
+                bool sel = e.Item.Selected;
+                using (SolidBrush b = new SolidBrush(sel ? Theme.AccentSoft : Theme.Input)) e.Graphics.FillRectangle(b, e.Bounds);
+                Color fg = sel ? Theme.Text : e.Item.ForeColor;
+                Rectangle tr = new Rectangle(e.Bounds.X + Theme.S(6), e.Bounds.Y, e.Bounds.Width - Theme.S(8), e.Bounds.Height);
+                TextRenderer.DrawText(e.Graphics, e.SubItem.Text, Theme.Body, tr, fg,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+            };
             list.Columns.Add("Data", Theme.S(170));
             list.Columns.Add("Com desfazer", Theme.S(120));
             list.Columns.Add("Sem desfazer", Theme.S(120));
@@ -260,7 +279,8 @@ namespace DebloatWin.App
 
             details = new TextBox();
             details.Multiline = true; details.ReadOnly = true; details.ScrollBars = ScrollBars.Vertical;
-            details.Dock = DockStyle.Fill; details.BackColor = Theme.Back; details.BorderStyle = BorderStyle.FixedSingle;
+            details.Dock = DockStyle.Fill; details.BackColor = Theme.Input; details.ForeColor = Theme.Text; details.BorderStyle = BorderStyle.None;
+            Native.Track(details);
             Panel detWrap = new Panel();
             detWrap.Dock = DockStyle.Fill; detWrap.Padding = new Padding(Theme.S(16), 0, Theme.S(16), 0);
             detWrap.Controls.Add(details);
@@ -303,7 +323,7 @@ namespace DebloatWin.App
                 it.SubItems.Add(s.Irreversible.Count.ToString());
                 it.SubItems.Add(s.Undone ? "Desfeita" : s.UndoCount == 0 ? "Nada a desfazer" : "Aplicada");
                 it.SubItems.Add(s.Windows ?? "");
-                if (s.Undone) it.ForeColor = Theme.Muted;
+                it.ForeColor = s.Undone ? Theme.Muted : Theme.Text;
                 list.Items.Add(it);
             }
             list.EndUpdate();

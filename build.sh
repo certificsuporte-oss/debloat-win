@@ -17,9 +17,9 @@ rm -rf build/ps-check
 mono build/Tests.exe build/ps-check
 python3 tests/ps_lint.py build/ps-check
 
-# Prévia da tela (opcional): ./build.sh preview  → gera PNGs em build/preview usando tela virtual
+# Prévia da tela (opcional): ./build.sh preview [build] [claro|escuro] → gera PNGs em build/preview usando tela virtual
 if [ "${1:-}" = "preview" ]; then
   mcs $OPTS $REFS -target:winexe -out:build/Preview.exe -main:PreviewProgram src/Core/*.cs src/App/*.cs tests/FakeSystem.cs tests/preview/Preview.cs
   mkdir -p build/preview
-  xvfb-run -a -s "-screen 0 1280x860x24" mono build/Preview.exe build/preview "${2:-19045}"
+  xvfb-run -a -s "-screen 0 1280x860x24" mono build/Preview.exe build/preview "${2:-19045}" "${3:-claro}"
 fi

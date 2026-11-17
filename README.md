@@ -13,6 +13,10 @@ Programa para Windows 10 e 11 que remove apps pré-instalados, reduz telemetria 
 3. Clique em **Aplicar**. Por padrão, o programa cria um **ponto de restauração** antes.
 4. Reinicie o computador no final.
 
+### Tema claro e escuro
+
+O programa segue o tema do Windows (claro ou escuro) e muda junto se você trocar o tema com ele aberto. O botão **Tema** no canto superior direito alterna entre **Sistema**, **Escuro** e **Claro**, e a escolha fica salva. No escuro, a barra de título, as barras de rolagem e os menus do Windows também ficam escuros.
+
 Cada ajuste mostra o **risco** (Seguro, Médio, Alto), avisos, se tem desfazer e em qual Windows funciona. **Ver detalhes** mostra exatamente o que é alterado e o PowerShell equivalente.
 
 ### Presets

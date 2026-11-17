@@ -28,6 +28,7 @@ namespace DebloatWin.App
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            Theme.SetMode(Theme.LoadMode(), false);
             Application.ThreadException += delegate(object s, ThreadExceptionEventArgs e) { ShowCrash(e.Exception); };
             AppDomain.CurrentDomain.UnhandledException += delegate(object s, UnhandledExceptionEventArgs e) { ShowCrash(e.ExceptionObject as Exception); };
             Application.Run(new MainForm(new WindowsSystem()));

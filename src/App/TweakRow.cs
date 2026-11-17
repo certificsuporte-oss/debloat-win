@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 using DebloatWin.Core;
 
 namespace DebloatWin.App
@@ -93,7 +92,7 @@ namespace DebloatWin.App
         {
             Graphics g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            Color bg = !Applicable ? Theme.Surface : isChecked ? Theme.Selected : hover ? Color.FromArgb(250, 251, 252) : Theme.Surface;
+            Color bg = !Applicable ? Theme.Surface : isChecked ? Theme.Selected : hover ? Theme.RowHover : Theme.Surface;
             g.Clear(Parent != null ? Parent.BackColor : Theme.Back);
             Rectangle card = new Rectangle(0, 0, Width - 1, Height - 1);
             using (System.Drawing.Drawing2D.GraphicsPath p = Theme.Rounded(card, Theme.S(8)))
@@ -102,13 +101,9 @@ namespace DebloatWin.App
                 using (Pen pen = new Pen(isChecked ? Theme.Accent : Theme.Border, isChecked ? 1.5f : 1f)) g.DrawPath(pen, p);
             }
 
-            // caixa de seleção
-            Size cb = CheckBoxRenderer.GetGlyphSize(g, CheckBoxState.UncheckedNormal);
-            Point cbPos = new Point(PadX, PadY + Math.Max(0, (titleHeight - cb.Height) / 2));
-            CheckBoxState st = !Applicable ? CheckBoxState.UncheckedDisabled
-                : isChecked ? (hover ? CheckBoxState.CheckedHot : CheckBoxState.CheckedNormal)
-                : (hover ? CheckBoxState.UncheckedHot : CheckBoxState.UncheckedNormal);
-            CheckBoxRenderer.DrawCheckBox(g, cbPos, st);
+            // caixa de seleção (desenhada à mão: fica certa no tema escuro)
+            int cs = Theme.CheckSize;
+            Theme.DrawCheck(g, new Rectangle(PadX, PadY + Math.Max(0, (titleHeight - cs) / 2), cs, cs), isChecked, Applicable, hover);
 
             Color title = Applicable ? Theme.Text : Theme.Disabled;
             Color muted = Applicable ? Theme.Muted : Theme.Disabled;
@@ -149,7 +144,7 @@ namespace DebloatWin.App
             Size ls = TextRenderer.MeasureText(g, link, Theme.Small, Size.Empty, TextFormatFlags.NoPadding);
             detailsRect = new Rectangle(Width - PadX - ls.Width, y + Theme.S(2), ls.Width, ls.Height);
             using (Font u = new Font(Theme.Small, FontStyle.Underline))
-                TextRenderer.DrawText(g, link, u, detailsRect.Location, Theme.Accent, TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(g, link, u, detailsRect.Location, Theme.Link, TextFormatFlags.NoPadding);
 
             if (Focused && ShowFocusCues)
             {

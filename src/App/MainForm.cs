@@ -7,11 +7,12 @@ using System.IO;
 using System.Security.Principal;
 using System.Text;
 using System.Windows.Forms;
+using Microsoft.Win32;
 using DebloatWin.Core;
 
 namespace DebloatWin.App
 {
-    public class MainForm : Form
+    public class MainForm : ThemedForm
     {
         readonly Engine engine;
         readonly WinInfo win;
@@ -24,11 +25,16 @@ namespace DebloatWin.App
         string search = "";
 
         // controles
-        Panel sidebar, content, header, bottom;
+        Panel sidebar, content, header, bottom, contentTop;
         FlowLayoutPanel listPanel;
-        Label catTitle, catSubtitle, summary, statusLine;
+        Label catTitle, catSubtitle, summary, statusLine, titleLabel, verLabel;
         TextBox searchBox;
-        CheckBox restoreCheck;
+        SearchField searchField;
+        CheckToggle restoreCheck;
+        FlatButton themeBtn;
+        LinkLabel clearLink;
+        readonly List<Label> sideLabels = new List<Label>();
+        UserPreferenceChangedEventHandler systemThemeHandler;
         FlatButton applyBtn, exportBtn;
         LinkLabel checkVisible, uncheckVisible;
         readonly FlatButton[] presetButtons = new FlatButton[3];
@@ -45,8 +51,6 @@ namespace DebloatWin.App
             all = Catalog.All();
 
             Text = AppInfo.Name + " " + AppInfo.Version;
-            AutoScaleMode = AutoScaleMode.None;
-            Font = Theme.Body;
             BackColor = Theme.Back;
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(Theme.S(1180), Theme.S(780));
@@ -89,6 +93,59 @@ namespace DebloatWin.App
 
             SelectCategory("todos");
             UpdateSummary();
+
+            // No modo "Sistema", acompanha o Windows quando o usuário troca claro/escuro
+            systemThemeHandler = delegate(object s, UserPreferenceChangedEventArgs e)
+            {
+                if (Theme.Mode != ThemeMode.Sistema || !IsHandleCreated) return;
+                BeginInvoke((MethodInvoker)delegate
+                {
+                    if (Theme.SetMode(ThemeMode.Sistema, false)) ApplyTheme();
+                });
+            };
+            try { SystemEvents.UserPreferenceChanged += systemThemeHandler; } catch { }
+            FormClosed += delegate { try { SystemEvents.UserPreferenceChanged -= systemThemeHandler; } catch { } };
+        }
+
+        /// <summary>Reaplica as cores do tema atual em toda a janela, sem reabrir o programa.</summary>
+        void ApplyTheme()
+        {
+            SuspendLayout();
+            BackColor = Theme.Back;
+            ForeColor = Theme.Text;
+            header.BackColor = Theme.Surface;
+            titleLabel.ForeColor = Theme.Text;
+            verLabel.ForeColor = Theme.Muted;
+            statusLine.ForeColor = isAdmin ? Theme.Muted : Theme.RiskHighFg;
+            sidebar.BackColor = Theme.Surface;
+            foreach (Label l in sideLabels) l.ForeColor = Theme.Muted;
+            content.BackColor = Theme.Back;
+            contentTop.BackColor = Theme.Back;
+            catTitle.ForeColor = Theme.Text;
+            catSubtitle.ForeColor = Theme.Muted;
+            foreach (LinkLabel l in new LinkLabel[] { clearLink, checkVisible, uncheckVisible })
+            {
+                l.LinkColor = Theme.Link; l.ActiveLinkColor = Theme.AccentHover; l.VisitedLinkColor = Theme.Link;
+            }
+            searchField.ApplyColors();
+            listPanel.BackColor = Theme.Back;
+            bottom.BackColor = Theme.Surface;
+            summary.ForeColor = Theme.Text;
+            themeBtn.Text = Theme.ModeLabel(Theme.Mode);
+            Native.TitleBar(this, Theme.Dark);
+            Native.Control(listPanel, Theme.Dark);
+            Native.Control(searchBox, Theme.Dark);
+            ResumeLayout(true);
+            foreach (TweakRow r in rows) r.Invalidate();
+            Refresh();
+        }
+
+        void CycleTheme()
+        {
+            ThemeMode next = Theme.Mode == ThemeMode.Sistema ? ThemeMode.Escuro
+                           : Theme.Mode == ThemeMode.Escuro ? ThemeMode.Claro : ThemeMode.Sistema;
+            Theme.SetMode(next, true);
+            ApplyTheme();
         }
 
         static bool IsAdministrator()
@@ -113,6 +170,7 @@ namespace DebloatWin.App
             };
 
             Label title = new Label();
+            titleLabel = title;
             title.Text = AppInfo.Name;
             title.Font = Theme.Title;
             title.ForeColor = Theme.Text;
@@ -121,6 +179,7 @@ namespace DebloatWin.App
             header.Controls.Add(title);
 
             Label ver = new Label();
+            verLabel = ver;
             ver.Text = "v" + AppInfo.Version;
             ver.Font = Theme.Small;
             ver.ForeColor = Theme.Muted;
@@ -137,7 +196,21 @@ namespace DebloatWin.App
             statusLine.ForeColor = isAdmin ? Theme.Muted : Theme.RiskHighFg;
             statusLine.Text = win.ToString() + "   •   " + (isAdmin ? "Administrador" : "SEM permissão de administrador");
             header.Controls.Add(statusLine);
-            header.Resize += delegate { statusLine.Left = header.Width - statusLine.Width - Theme.S(20); };
+
+            themeBtn = new FlatButton("Tema: Sistema", false);
+            themeBtn.Font = Theme.Body;
+            themeBtn.Width = Theme.S(150);
+            themeBtn.Height = Theme.S(32);
+            themeBtn.Text = Theme.ModeLabel(Theme.Mode);
+            themeBtn.Click += delegate { CycleTheme(); };
+            tips.SetToolTip(themeBtn, "Alterna entre seguir o Windows, escuro e claro.");
+            header.Controls.Add(themeBtn);
+
+            header.Resize += delegate
+            {
+                themeBtn.Location = new Point(header.Width - themeBtn.Width - Theme.S(20), (header.Height - themeBtn.Height) / 2);
+                statusLine.Left = themeBtn.Left - statusLine.Width - Theme.S(14);
+            };
         }
 
         void BuildSidebar()
@@ -173,9 +246,10 @@ namespace DebloatWin.App
                 y += b.Height + Theme.S(6);
             }
             LinkLabel clear = new LinkLabel();
+            clearLink = clear;
             clear.Text = "Limpar seleção";
             clear.AutoSize = true;
-            clear.LinkColor = Theme.Accent;
+            clear.LinkColor = Theme.Link;
             clear.Location = new Point(Theme.S(18), y + Theme.S(2));
             clear.LinkClicked += delegate { foreach (TweakRow r in rows) r.Checked = false; Flash("Seleção limpa."); };
             sidebar.Controls.Add(clear);
@@ -209,6 +283,7 @@ namespace DebloatWin.App
             l.AutoSize = true;
             l.Location = new Point(Theme.S(20), y);
             sidebar.Controls.Add(l);
+            sideLabels.Add(l);
             return y + Theme.S(26);
         }
 
@@ -256,12 +331,9 @@ namespace DebloatWin.App
             tips.SetToolTip(exportBtn, "Salva um script PowerShell com os ajustes marcados, para rodar em outro PC.");
             bottom.Controls.Add(exportBtn);
 
-            restoreCheck = new CheckBox();
-            restoreCheck.Text = "Criar ponto de restauração antes";
+            restoreCheck = new CheckToggle("Criar ponto de restauração antes");
             restoreCheck.Checked = true;
-            restoreCheck.AutoSize = true;
             restoreCheck.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            restoreCheck.ForeColor = Theme.Text;
             bottom.Controls.Add(restoreCheck);
 
             bottom.Resize += delegate
@@ -281,6 +353,7 @@ namespace DebloatWin.App
             content.BackColor = Theme.Back;
 
             Panel top = new Panel();
+            contentTop = top;
             top.Dock = DockStyle.Top;
             top.Height = Theme.S(92);
             top.BackColor = Theme.Back;
@@ -301,17 +374,18 @@ namespace DebloatWin.App
             catSubtitle.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
             top.Controls.Add(catSubtitle);
 
-            searchBox = new TextBox();
-            searchBox.Width = Theme.S(260);
-            searchBox.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            searchBox.BorderStyle = BorderStyle.FixedSingle;
+            searchField = new SearchField();
+            searchField.Width = Theme.S(260);
+            searchField.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            searchBox = searchField.Box;
             SetCue(searchBox, "Buscar ajuste (Ctrl+F)");
-            top.Controls.Add(searchBox);
+            Native.Track(searchBox);
+            top.Controls.Add(searchField);
 
             checkVisible = new LinkLabel();
             checkVisible.Text = "Marcar todos";
             checkVisible.AutoSize = true;
-            checkVisible.LinkColor = Theme.Accent;
+            checkVisible.LinkColor = Theme.Link;
             checkVisible.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             checkVisible.LinkClicked += delegate { SetVisible(true); };
             top.Controls.Add(checkVisible);
@@ -319,14 +393,14 @@ namespace DebloatWin.App
             uncheckVisible = new LinkLabel();
             uncheckVisible.Text = "Desmarcar";
             uncheckVisible.AutoSize = true;
-            uncheckVisible.LinkColor = Theme.Accent;
+            uncheckVisible.LinkColor = Theme.Link;
             uncheckVisible.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             uncheckVisible.LinkClicked += delegate { SetVisible(false); };
             top.Controls.Add(uncheckVisible);
 
             top.Resize += delegate
             {
-                searchBox.Location = new Point(top.Width - searchBox.Width - Theme.S(28), Theme.S(18));
+                searchField.Location = new Point(top.Width - searchField.Width - Theme.S(28), Theme.S(14));
                 uncheckVisible.Location = new Point(top.Width - uncheckVisible.Width - Theme.S(28), Theme.S(54));
                 checkVisible.Location = new Point(uncheckVisible.Left - checkVisible.Width - Theme.S(12), Theme.S(54));
                 catSubtitle.Width = Math.Max(Theme.S(100), checkVisible.Left - catSubtitle.Left - Theme.S(16));
@@ -350,6 +424,7 @@ namespace DebloatWin.App
             listPanel.BackColor = Theme.Back;
             listPanel.Padding = new Padding(Theme.S(24), Theme.S(4), Theme.S(16), Theme.S(16));
             listPanel.ClientSizeChanged += delegate { ResizeRows(); };
+            Native.Track(listPanel);
 
             content.Controls.Add(listPanel);
             content.Controls.Add(top);

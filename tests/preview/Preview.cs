@@ -22,6 +22,7 @@ static class PreviewProgram
         sys.WriteValue(nt, "EditionID", RegKind.String, "Professional");
 
         Application.EnableVisualStyles();
+        if (args.Length > 2) Theme.SetMode(args[2] == "escuro" ? ThemeMode.Escuro : ThemeMode.Claro, false);
         MainForm f = new MainForm(sys);
         f.StartPosition = FormStartPosition.Manual;
         f.Location = new Point(0, 0);
@@ -34,7 +35,9 @@ static class PreviewProgram
             {
                 switch (step++)
                 {
-                    case 0: Shot(f, outDir + "/1-todos.png"); Call(f, "ApplyPreset", 2); break;
+                    case 0: Shot(f, outDir + "/1-todos.png"); Call(f, "ApplyPreset", 2);
+                            if (args.Length > 3 && args[3] == "alternar") { f.GetType().GetMethod("CycleTheme", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(f, null); }
+                            break;
                     case 1: Call(f, "SelectCategory", Category.Apps); break;
                     case 2: Shot(f, outDir + "/2-rigido-apps.png"); Call(f, "SelectCategory", Category.Desempenho); break;
                     case 3: Shot(f, outDir + "/3-desempenho.png");
