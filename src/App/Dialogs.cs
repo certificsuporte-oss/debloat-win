@@ -154,7 +154,9 @@ namespace DebloatWin.App
     /// <summary>Mostra exatamente o que um ajuste faz.</summary>
     public class DetailsForm : ThemedForm
     {
-        public DetailsForm(Tweak t)
+        public DetailsForm(Tweak t) : this(t, null) { }
+
+        public DetailsForm(Tweak t, Detector detector)
         {
             Text = t.Title;
             StartPosition = FormStartPosition.CenterParent;
@@ -176,6 +178,24 @@ namespace DebloatWin.App
             if (t.ProOnly) sb.AppendLine("Só tem efeito no Windows Pro, Enterprise ou Education.");
             sb.AppendLine("Id: " + t.Id);
             sb.AppendLine();
+            if (detector != null)
+            {
+                TweakStatus st = detector.Summarize(t);
+                string head = st.State == TweakState.Applied ? "já aplicado"
+                    : st.State == TweakState.Partial ? string.Format("parcial ({0} de {1})", st.Applied, st.Known)
+                    : st.State == TweakState.NotApplied ? "não aplicado"
+                    : st.State == TweakState.NotApplicable ? "nada a fazer (o que este ajuste mexe não existe neste PC)"
+                    : st.State == TweakState.Checking ? "verificando…" : "sem como verificar (ação de uma vez só)";
+                sb.AppendLine("SITUAÇÃO NESTE PC: " + head.ToUpperInvariant());
+                foreach (TweakAction a in t.Actions)
+                {
+                    DetectState ds = detector.StateOf(a);
+                    string mark = ds == DetectState.Applied ? "[✓]" : ds == DetectState.NotApplied ? "[ ]" : ds == DetectState.NotApplicable ? "[–]" : "[?]";
+                    sb.AppendLine(" " + mark + " " + a.Describe());
+                }
+                sb.AppendLine("   [✓] já está assim  [ ] falta fazer  [–] não existe neste PC  [?] sem como verificar");
+                sb.AppendLine();
+            }
             sb.AppendLine("O QUE ESTE AJUSTE FAZ");
             foreach (TweakAction a in t.Actions) sb.AppendLine(" • " + a.Describe());
             sb.AppendLine();

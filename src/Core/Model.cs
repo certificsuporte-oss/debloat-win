@@ -10,7 +10,7 @@ namespace DebloatWin.Core
     {
         // Troque aqui para renomear o programa.
         public const string Name = "Debloat Win";
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
         public const string DataFolderName = "DebloatWin";
     }
 
@@ -149,6 +149,15 @@ namespace DebloatWin.Core
         }
     }
 
+    /// <summary>Situação de uma ação neste PC.</summary>
+    public enum DetectState
+    {
+        Unknown,        // não dá para saber (ex.: limpezas, que não deixam rastro)
+        NotApplied,
+        Applied,
+        NotApplicable   // não existe neste PC (programa, serviço ou recurso ausente)
+    }
+
     /// <summary>
     /// Uma operação concreta no sistema. Cada ajuste tem uma ou mais.
     /// </summary>
@@ -159,5 +168,14 @@ namespace DebloatWin.Core
         public abstract ActionResult Apply(ISystem sys);
         /// <summary>Equivalente em PowerShell, para exportar o script.</summary>
         public abstract string ToPowerShell();
+
+        /// <summary>Verificação rápida, sem PowerShell (registro). Unknown = usar DetectScript.</summary>
+        public virtual DetectState Detect(ISystem sys) { return DetectState.Unknown; }
+
+        /// <summary>
+        /// Trecho PowerShell que devolve '1' (aplicado), '0' (não aplicado) ou 'NA' (não existe neste PC).
+        /// Todos os trechos rodam juntos numa única execução. null = não tem verificação.
+        /// </summary>
+        public virtual string DetectScript() { return null; }
     }
 }

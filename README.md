@@ -38,6 +38,16 @@ O programa segue o tema do Windows (claro ou escuro) e muda junto se você troca
 
 Cada ajuste mostra o **risco** (Seguro, Médio, Alto), avisos, se tem desfazer e em qual Windows funciona. **Ver detalhes** mostra exatamente o que é alterado e o PowerShell equivalente.
 
+### O que já está feito neste PC
+
+Ao abrir, o programa verifica cada ajuste na máquina e mostra uma etiqueta: **✓ Já aplicado**, **Parcial 3/5** ou **Nada a fazer neste PC** (quando o que o ajuste mexe não existe ali, como o driver da NVIDIA). Vale também para o que foi feito por outra ferramenta (WinScript, WinUtil) ou à mão, porque ele olha o estado do PC, não o histórico.
+
+- Registro e serviços são verificados na hora; apps, tarefas agendadas, recursos do Windows e plano de energia em segundo plano (as linhas mostram "Verificando…").
+- **Esconder já aplicados** mostra só o que falta. **Marcar pendentes** e os presets marcam só o que ainda não foi feito.
+- **Ver detalhes** mostra a situação de cada alteração do ajuste.
+- Depois de aplicar ou desfazer, o programa verifica de novo.
+- Limpezas e reparos (Ferramentas) não deixam rastro, então não têm etiqueta.
+
 ### Presets
 
 | Preset | O que entra |
@@ -80,6 +90,7 @@ DebloatWin.exe /preset extremo /exportar C:\temp\debloat.ps1
 - `/ids a,b,c` — ajustes específicos (o id aparece em **Ver detalhes**)
 - `/semponto` — não cria ponto de restauração. **Sem essa opção, se o ponto de restauração falhar, nada é aplicado.**
 - `/exportar arquivo.ps1` — só gera o script, não aplica
+- `/status` — lista o que já está aplicado, parcial ou pendente neste PC
 
 Códigos de saída: `0` ok · `1` alguma falha · `2` argumento inválido · `3` sem administrador.
 Em um `.bat`, use `start /wait DebloatWin.exe /preset basico` para esperar terminar e ler o `%ERRORLEVEL%`.
@@ -119,8 +130,8 @@ Rode os testes (`./build.sh`): eles conferem ids únicos, presets, avisos em aju
 
 ## Situação dos testes
 
-- 1.535 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática).
-- 59 scripts PowerShell gerados passam na checagem estrutural (chaves, parênteses, aspas).
+- 1.549 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
+- 60 scripts PowerShell gerados (incluindo o de detecção) passam na checagem estrutural (chaves, parênteses, aspas).
 - Tela testada no Mono com Windows 10 e 11 simulados.
 - **Ainda não foi executado num Windows real.** Teste primeiro numa máquina virtual ou num PC de teste antes de usar em clientes.
 

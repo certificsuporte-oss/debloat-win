@@ -113,6 +113,17 @@ namespace DebloatWin.Core
             }
         }
 
+        public override DetectState Detect(ISystem sys)
+        {
+            try
+            {
+                if (RequireKey != null && !sys.KeyExists(RequireKey)) return DetectState.NotApplicable;
+                RegValue v = sys.ReadValue(Key, Name);
+                return v != null && v.SameAs(Kind, Data) ? DetectState.Applied : DetectState.NotApplied;
+            }
+            catch { return DetectState.Unknown; }
+        }
+
         public override string ToPowerShell()
         {
             string path = Ps.Q(RegPath.ToPowerShellPath(Key));
@@ -197,6 +208,21 @@ namespace DebloatWin.Core
             {
                 return ActionResult.Fail(ex.Message);
             }
+        }
+
+        public override DetectState Detect(ISystem sys)
+        {
+            try
+            {
+                RegValue v = sys.ReadValue(Key, "Start");
+                if (v == null) return DetectState.NotApplicable;
+                int cur;
+                if (!int.TryParse(v.Data, out cur)) return DetectState.Unknown;
+                // Manual ou Desativado: já estar "mais desligado" também conta como aplicado
+                if (Mode == StartMode.Automatico) return cur == 2 ? DetectState.Applied : DetectState.NotApplied;
+                return cur >= (int)Mode ? DetectState.Applied : DetectState.NotApplied;
+            }
+            catch { return DetectState.Unknown; }
         }
 
         public override string ToPowerShell()
@@ -334,6 +360,17 @@ namespace DebloatWin.Core
         }
 
         protected override string UndoDescription() { return "Reativar tarefas agendadas"; }
+
+        public override string DetectScript()
+        {
+            return "$n = 0; $off = 0\n" +
+                   "foreach ($full in " + Ps.List(Tasks) + ") {\n" +
+                   "  $i = $full.LastIndexOf('\\')\n" +
+                   "  $t = Get-ScheduledTask -TaskPath $full.Substring(0, $i + 1) -TaskName $full.Substring($i + 1) -ErrorAction SilentlyContinue\n" +
+                   "  if ($t) { $n++; if ([string]$t.State -eq 'Disabled') { $off++ } }\n" +
+                   "}\n" +
+                   "if ($n -eq 0) { 'NA' } elseif ($off -eq $n) { '1' } else { '0' }";
+        }
     }
 
     /// <summary>Remove apps da Store (para todos os usuários e da imagem). Não tem desfazer.</summary>
@@ -368,6 +405,14 @@ namespace DebloatWin.Core
         }
 
         protected override string UndoScript() { return null; }
+
+        public override string DetectScript()
+        {
+            // Get-DbwAppx: lista em cache de apps instalados e da imagem (ver Detector)
+            return "$all = Get-DbwAppx; $found = $false\n" +
+                   "foreach ($p in " + Ps.List(Packages) + ") { if (@($all | Where-Object { $_ -like $p }).Count -gt 0) { $found = $true } }\n" +
+                   "if ($found) { '0' } else { '1' }";
+        }
     }
 
     /// <summary>Desativa um recurso opcional do Windows (Ativar ou desativar recursos do Windows).</summary>
@@ -394,6 +439,12 @@ namespace DebloatWin.Core
         }
 
         protected override string UndoDescription() { return "Reativar recurso " + Feature; }
+
+        public override string DetectScript()
+        {
+            return "$f = Get-WindowsOptionalFeature -Online -FeatureName " + Ps.Q(Feature) + " -ErrorAction SilentlyContinue\n" +
+                   "if (-not $f) { 'NA' } elseif ([string]$f.State -like 'Enabled*') { '0' } else { '1' }";
+        }
     }
 
     /// <summary>Remove um recurso sob demanda (Capability). O desfazer reinstala pela internet.</summary>
@@ -418,6 +469,12 @@ namespace DebloatWin.Core
         }
 
         protected override string UndoDescription() { return "Reinstalar recurso " + Pattern + " (precisa de internet)"; }
+
+        public override string DetectScript()
+        {
+            // Get-DbwCaps: lista em cache dos recursos sob demanda instalados (ver Detector)
+            return "if (@(Get-DbwCaps | Where-Object { $_ -like " + Ps.Q(Pattern) + " }).Count -gt 0) { '0' } else { '1' }";
+        }
     }
 
     /// <summary>Comando livre em PowerShell, com desfazer opcional.</summary>
@@ -435,6 +492,10 @@ namespace DebloatWin.Core
 
         public CommandAction(string description, string apply) : this(description, apply, null, null) { }
 
+        /// <summary>Trecho de verificação opcional (ver TweakAction.DetectScript).</summary>
+        public string DetectPs;
+
+        public override string DetectScript() { return DetectPs; }
         public override string Describe() { return description; }
         protected override string ApplyScript() { return apply; }
         protected override string UndoScript() { return undo; }

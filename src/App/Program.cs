@@ -9,6 +9,7 @@
 //   /ids        lista de ids a aplicar (soma com o preset, se houver)
 //   /semponto   não cria ponto de restauração
 //   /exportar   só gera o .ps1, não aplica nada
+//   /status     mostra o que já está aplicado neste PC (por este app, outra ferramenta ou à mão)
 //
 // Códigos de saída: 0 = ok, 1 = alguma falha, 2 = argumentos inválidos, 3 = sem administrador
 using System;
@@ -82,6 +83,7 @@ namespace DebloatWin.App
             int level = 0;
             bool restore = true;
             string export = null;
+            bool status = false;
             List<string> ids = new List<string>();
             for (int i = 0; i < args.Length; i++)
             {
@@ -100,6 +102,7 @@ namespace DebloatWin.App
                         foreach (string id in next.Split(',')) if (id.Trim().Length > 0) ids.Add(id.Trim());
                         i++; break;
                     case "semponto": restore = false; break;
+                    case "status": status = true; break;
                     case "exportar":
                         if (next == null) return Usage("faltou o arquivo de saída");
                         export = next; i++; break;
@@ -112,7 +115,8 @@ namespace DebloatWin.App
                         return Usage("argumento desconhecido: " + args[i]);
                 }
             }
-            if (level == 0 && ids.Count == 0) return Usage("informe /preset ou /ids");
+            if (status) return PrintStatus();
+            if (level == 0 && ids.Count == 0) return Usage("informe /preset, /ids ou /status");
 
             WindowsSystem sys = new WindowsSystem();
             WinInfo win = WinInfo.Detect(sys);
@@ -164,10 +168,52 @@ namespace DebloatWin.App
             return r.Count(ActionOutcome.Failed) > 0 ? 1 : 0;
         }
 
+        /// <summary>/status: mostra o que já está aplicado neste PC.</summary>
+        static int PrintStatus()
+        {
+            WindowsSystem sys = new WindowsSystem();
+            WinInfo win = WinInfo.Detect(sys);
+            List<Tweak> list = new List<Tweak>();
+            foreach (Tweak t in Catalog.All())
+                if (t.AppliesTo(win.Version) && !(t.ProOnly && win.IsHome)) list.Add(t);
+            Console.WriteLine(AppInfo.Name + " " + AppInfo.Version + " — " + win);
+            Console.WriteLine("Verificando o que já está aplicado neste PC…");
+            Detector d = new Detector(sys);
+            d.DetectFast(list);
+            d.DetectSlow(list, 240);
+            int applied = 0, partial = 0, pending = 0;
+            Category? last = null;
+            foreach (Tweak t in list)
+            {
+                if (last == null || last.Value != t.Category)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine("== " + CategoryInfo.Title(t.Category));
+                    last = t.Category;
+                }
+                TweakStatus st = d.Summarize(t);
+                string tag;
+                switch (st.State)
+                {
+                    case TweakState.Applied: tag = "APLICADO   "; applied++; break;
+                    case TweakState.Partial: tag = string.Format("PARCIAL {0}/{1}", st.Applied, st.Known).PadRight(11); partial++; break;
+                    case TweakState.NotApplied: tag = "pendente   "; pending++; break;
+                    case TweakState.NotApplicable: tag = "n/a        "; break;
+                    default: tag = "—          "; break;
+                }
+                Console.WriteLine("  [" + tag + "] " + t.Id.PadRight(22) + " " + t.Title);
+            }
+            Console.WriteLine();
+            Console.WriteLine(string.Format("Resumo: {0} aplicados, {1} parciais, {2} pendentes (de {3} ajustes que valem para este Windows).",
+                applied, partial, pending, list.Count));
+            return 0;
+        }
+
         static int Usage(string error)
         {
             if (error != null) Console.WriteLine("Erro: " + error);
             Console.WriteLine("Uso: DebloatWin.exe /preset basico|rigido|extremo [/ids id1,id2] [/semponto] [/exportar arquivo.ps1]");
+            Console.WriteLine("     DebloatWin.exe /status   (mostra o que já está aplicado neste PC)");
             Console.WriteLine("Sem argumentos, abre a tela.");
             return 2;
         }

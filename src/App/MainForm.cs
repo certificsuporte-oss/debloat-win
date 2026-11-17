@@ -15,6 +15,10 @@ namespace DebloatWin.App
     public class MainForm : ThemedForm
     {
         readonly Engine engine;
+        readonly ISystem sys;
+        Detector detector;
+        bool hideApplied;
+        CheckToggle hideToggle;
         readonly WinInfo win;
         readonly bool isAdmin;
         readonly List<Tweak> all;
@@ -46,6 +50,7 @@ namespace DebloatWin.App
 
         public MainForm(ISystem sys, string startupNotice)
         {
+            this.sys = sys;
             Theme.Init(this);
             engine = new Engine(sys, Engine.DefaultDataDir());
             win = WinInfo.Detect(sys);
@@ -80,10 +85,16 @@ namespace DebloatWin.App
                 r.CheckedChanged += delegate { UpdateSummary(); };
                 r.DetailsRequested += delegate(object s, EventArgs e)
                 {
-                    using (DetailsForm d = new DetailsForm(((TweakRow)s).Tweak)) d.ShowDialog(this);
+                    using (DetailsForm d = new DetailsForm(((TweakRow)s).Tweak, detector)) d.ShowDialog(this);
                 };
                 rows.Add(r);
             }
+
+            // o que já está aplicado neste PC: registro e serviços agora; o resto em segundo plano
+            detector = new Detector(sys);
+            detector.DetectFast(ApplicableTweaks());
+            UpdateStatuses();
+            Shown += delegate { StartSlowDetection(); };
 
             // quantos ajustes de cada preset valem neste Windows
             for (int i = 0; i < 3; i++)
@@ -108,6 +119,47 @@ namespace DebloatWin.App
             };
             try { SystemEvents.UserPreferenceChanged += systemThemeHandler; } catch { }
             FormClosed += delegate { try { SystemEvents.UserPreferenceChanged -= systemThemeHandler; } catch { } };
+        }
+
+        List<Tweak> ApplicableTweaks()
+        {
+            List<Tweak> l = new List<Tweak>();
+            foreach (TweakRow r in rows) if (r.Applicable) l.Add(r.Tweak);
+            return l;
+        }
+
+        void StartSlowDetection()
+        {
+            Detector d = detector;
+            List<Tweak> list = ApplicableTweaks();
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                d.DetectSlow(list, 240);
+                if (IsHandleCreated && !IsDisposed)
+                    BeginInvoke((MethodInvoker)delegate
+                    {
+                        if (d != detector) return; // já foi substituído por uma verificação mais nova
+                        UpdateStatuses();
+                        if (hideApplied) RefreshList();
+                    });
+            });
+        }
+
+        /// <summary>Verifica de novo o PC inteiro (depois de aplicar ou desfazer).</summary>
+        void Redetect()
+        {
+            detector = new Detector(sys);
+            detector.DetectFast(ApplicableTweaks());
+            UpdateStatuses();
+            if (hideApplied) RefreshList();
+            StartSlowDetection();
+        }
+
+        void UpdateStatuses()
+        {
+            foreach (TweakRow r in rows)
+                if (r.Applicable) r.Status = detector.Summarize(r.Tweak);
+            UpdateSummary();
         }
 
         /// <summary>Reaplica as cores do tema atual em toda a janela, sem reabrir o programa.</summary>
@@ -272,6 +324,7 @@ namespace DebloatWin.App
             hist.Click += delegate
             {
                 using (HistoryForm h = new HistoryForm(engine)) h.ShowDialog(this);
+                Redetect();
             };
             sidebar.Controls.Add(hist);
             sidebar.Resize += delegate { hist.Top = sidebar.Height - hist.Height - Theme.S(16); };
@@ -386,12 +439,18 @@ namespace DebloatWin.App
             top.Controls.Add(searchField);
 
             checkVisible = new LinkLabel();
-            checkVisible.Text = "Marcar todos";
+            checkVisible.Text = "Marcar pendentes";
             checkVisible.AutoSize = true;
             checkVisible.LinkColor = Theme.Link;
             checkVisible.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             checkVisible.LinkClicked += delegate { SetVisible(true); };
             top.Controls.Add(checkVisible);
+
+            hideToggle = new CheckToggle("Esconder já aplicados");
+            hideToggle.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            hideToggle.CheckedChanged += delegate { hideApplied = hideToggle.Checked; RefreshList(); };
+            tips.SetToolTip(hideToggle, "Mostra só o que ainda falta fazer neste PC.");
+            top.Controls.Add(hideToggle);
 
             uncheckVisible = new LinkLabel();
             uncheckVisible.Text = "Desmarcar";
@@ -406,7 +465,8 @@ namespace DebloatWin.App
                 searchField.Location = new Point(top.Width - searchField.Width - Theme.S(28), Theme.S(14));
                 uncheckVisible.Location = new Point(top.Width - uncheckVisible.Width - Theme.S(28), Theme.S(54));
                 checkVisible.Location = new Point(uncheckVisible.Left - checkVisible.Width - Theme.S(12), Theme.S(54));
-                catSubtitle.Width = Math.Max(Theme.S(100), checkVisible.Left - catSubtitle.Left - Theme.S(16));
+                hideToggle.Location = new Point(checkVisible.Left - hideToggle.Width - Theme.S(18), Theme.S(50));
+                catSubtitle.Width = Math.Max(Theme.S(100), hideToggle.Left - catSubtitle.Left - Theme.S(16));
             };
 
             searchTimer = new Timer();
@@ -452,8 +512,10 @@ namespace DebloatWin.App
             RefreshList();
         }
 
-        bool Matches(Tweak t)
+        bool Matches(TweakRow r)
         {
+            if (hideApplied && r.AlreadyApplied) return false;
+            Tweak t = r.Tweak;
             if (search.Length > 0)
             {
                 string q = search.ToLowerInvariant();
@@ -490,7 +552,7 @@ namespace DebloatWin.App
             List<Control> items = new List<Control>();
             foreach (TweakRow r in rows)
             {
-                if (!Matches(r.Tweak)) continue;
+                if (!Matches(r)) continue;
                 if (grouped && (lastCat == null || lastCat.Value != r.Tweak.Category))
                 {
                     items.Add(new GroupHeader(CategoryInfo.Title(r.Tweak.Category)));
@@ -534,20 +596,24 @@ namespace DebloatWin.App
             foreach (Control c in listPanel.Controls)
             {
                 TweakRow r = c as TweakRow;
-                if (r != null && r.Applicable) r.Checked = value;
+                if (r != null && r.Applicable) r.Checked = value && !r.AlreadyApplied;
             }
         }
 
         void ApplyPreset(int level)
         {
-            int n = 0;
+            int n = 0, done = 0;
             foreach (TweakRow r in rows)
             {
-                r.Checked = r.Applicable && r.Tweak.InPreset(level);
+                bool inPreset = r.Applicable && r.Tweak.InPreset(level);
+                if (inPreset && r.AlreadyApplied) done++;
+                r.Checked = inPreset && !r.AlreadyApplied;
                 if (r.Checked) n++;
             }
             string name = level == 1 ? "Básico" : level == 2 ? "Rígido" : "Extremo";
-            Flash("Preset " + name + " marcado. Revise e clique em Aplicar.");
+            Flash(done > 0
+                ? string.Format("Preset {0}: {1} pendentes marcados ({2} já estavam aplicados).", name, n, done)
+                : "Preset " + name + " marcado. Revise e clique em Aplicar.");
         }
 
         string flashText;
@@ -568,7 +634,8 @@ namespace DebloatWin.App
         void UpdateSummary()
         {
             List<Tweak> sel = Selected();
-            int irreversible = 0, high = 0, restart = 0;
+            int irreversible = 0, high = 0, restart = 0, alreadyDone = 0;
+            foreach (TweakRow r in rows) if (r.Checked && r.AlreadyApplied) alreadyDone++;
             foreach (Tweak t in sel)
             {
                 if (!t.IsReversible) irreversible++;
@@ -582,6 +649,7 @@ namespace DebloatWin.App
             {
                 sb.Append(sel.Count == 1 ? "1 ajuste marcado" : sel.Count + " ajustes marcados");
                 if (irreversible > 0) sb.Append("  •  " + irreversible + " sem desfazer");
+                if (alreadyDone > 0) sb.Append("  •  " + alreadyDone + " já aplicado" + (alreadyDone > 1 ? "s" : ""));
                 if (high > 0) sb.Append("  •  " + high + " de risco alto");
                 if (restart > 0) sb.Append("  •  pede reinício");
             }
@@ -635,6 +703,13 @@ namespace DebloatWin.App
                 foreach (string s in irr) { if (n++ < 12) sb.AppendLine("  • " + s); }
                 if (irr.Count > 12) sb.AppendLine("  … e mais " + (irr.Count - 12));
             }
+            int already = 0;
+            foreach (TweakRow r in rows) if (r.Checked && r.AlreadyApplied) already++;
+            if (already > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine(already + " dos marcados já estão aplicados neste PC: serão só conferidos, sem mudar nada.");
+            }
             sb.AppendLine();
             sb.AppendLine(restoreCheck.Checked ? "Um ponto de restauração será criado antes." : "ATENÇÃO: nenhum ponto de restauração será criado.");
             if (MessageBox.Show(this, sb.ToString(), AppInfo.Name, MessageBoxButtons.YesNo,
@@ -682,6 +757,7 @@ namespace DebloatWin.App
             });
             pf.ShowDialog(this);
             pf.Dispose();
+            Redetect();
         }
 
         void ExportScript()

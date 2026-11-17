@@ -59,6 +59,14 @@ namespace DebloatWin.Core
             a.TimeoutSeconds = timeoutSeconds;
             t.Actions.Add(a); return t;
         }
+        /// <summary>Verificação ('1'/'0'/'NA') para o último comando adicionado.</summary>
+        public static Tweak Detect(this Tweak t, string ps)
+        {
+            CommandAction c = t.Actions[t.Actions.Count - 1] as CommandAction;
+            if (c == null) throw new System.InvalidOperationException("Detect só vale depois de Cmd: " + t.Id);
+            c.DetectPs = ps;
+            return t;
+        }
         public static Tweak Win10(this Tweak t) { t.Windows = WinVersion.Win10; return t; }
         public static Tweak Win11(this Tweak t) { t.Windows = WinVersion.Win11; return t; }
         public static Tweak Restart(this Tweak t) { t.NeedsRestart = true; return t; }
@@ -229,6 +237,8 @@ namespace DebloatWin.Core
                    "  Start-Process -FilePath $s.FullName -ArgumentList $arg -Wait\n" +
                    "}\n" +
                    "Write-Output 'OneDrive desinstalado'\n")
+              .Detect("$p = @(\"$env:LOCALAPPDATA\\Microsoft\\OneDrive\\OneDrive.exe\", \"$env:ProgramFiles\\Microsoft OneDrive\\OneDrive.exe\", \"${env:ProgramFiles(x86)}\\Microsoft OneDrive\\OneDrive.exe\") | Where-Object { Test-Path $_ }\n" +
+                      "if (@($p).Count -gt 0) { '0' } else { '1' }")
               .Dw(PolWin + "OneDrive", "DisableFileSyncNGSC", 1)
               .Dw(@"HKCU\Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}", "System.IsPinnedToNameSpaceTree", 0);
 
@@ -557,7 +567,9 @@ namespace DebloatWin.Core
                    "if ($cur) { Write-Output \"UNDO:$cur\" }\n" +
                    "Write-Output 'Plano Alto desempenho ativado'\n",
                    "foreach ($g in {UNDO}) { powercfg /setactive $g | Out-Null }\n",
-                   "Voltar ao plano de energia anterior");
+                   "Voltar ao plano de energia anterior")
+              .Detect("$a = powercfg /getactivescheme | Out-String\n" +
+                      "if ($a -match '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c' -or $a -match 'Alto desempenho|High performance') { '1' } else { '0' }");
 
             T("perf.ultimate", c, 3, Risk.Baixo, "Plano de energia Desempenho Máximo",
               "Cria e ativa o plano Desempenho Máximo (Ultimate Performance), que evita economia de energia no processador.")
@@ -576,7 +588,8 @@ namespace DebloatWin.Core
                    "if ($cur) { Write-Output \"UNDO:$cur\" }\n" +
                    "Write-Output 'Plano Desempenho Máximo ativado'\n",
                    "foreach ($g in {UNDO}) { powercfg /setactive $g | Out-Null }\n",
-                   "Voltar ao plano de energia anterior");
+                   "Voltar ao plano de energia anterior")
+              .Detect("if ((powercfg /getactivescheme | Out-String) -match '" + UltimateGuid + "') { '1' } else { '0' }");
 
             T("perf.hibernate", c, 3, Risk.Baixo, "Desativar hibernação",
               "Apaga o arquivo hiberfil.sys (libera alguns GB) e desliga a hibernação. Também desliga a Inicialização Rápida.")
@@ -584,7 +597,9 @@ namespace DebloatWin.Core
               .Cmd("Desativar hibernação",
                    "powercfg /hibernate off\nif ($LASTEXITCODE -ne 0) { throw 'powercfg falhou' }\nWrite-Output 'Hibernação desativada'\n",
                    "powercfg /hibernate on | Out-Null\n",
-                   "Reativar hibernação");
+                   "Reativar hibernação")
+              .Detect("$v = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power' -Name HibernateEnabled -ErrorAction SilentlyContinue).HibernateEnabled\n" +
+                      "if ($v -eq 0) { '1' } else { '0' }");
 
             T("perf.visual", c, 3, Risk.Baixo, "Efeitos visuais para melhor desempenho",
               "Desliga animações e sombras do Windows, mantendo as fontes suavizadas.")

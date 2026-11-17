@@ -21,6 +21,25 @@ static class PreviewProgram
         sys.WriteValue(nt, "DisplayVersion", RegKind.String, args.Length > 1 && args[1] != "19045" ? "24H2" : "22H2");
         sys.WriteValue(nt, "EditionID", RegKind.String, "Professional");
 
+        // PC simulado com alguns ajustes já feitos (à mão ou por outra ferramenta)
+        sys.WriteValue(@"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "HideFileExt", RegKind.DWord, "0");
+        sys.WriteValue(@"HKCU\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo", "Enabled", RegKind.DWord, "0");
+        sys.WriteValue(@"HKLM\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo", "DisabledByGroupPolicy", RegKind.DWord, "1");
+        sys.WriteValue(@"HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager", "SilentInstalledAppsEnabled", RegKind.DWord, "0");
+        sys.WriteValue(@"HKLM\SOFTWARE\Policies\Microsoft\Windows\CloudContent", "DisableWindowsConsumerFeatures", RegKind.DWord, "1");
+        sys.AddService("DiagTrack", 4); sys.AddService("MapsBroker", 2); sys.AddService("PcaSvc", 3);
+        sys.PowerShellHandler = delegate(string sc)
+        {
+            ProcResult pr = new ProcResult();
+            if (!sc.Contains("Get-DbwAppx")) { pr.Output = "ok"; return pr; }
+            System.Text.StringBuilder o = new System.Text.StringBuilder();
+            int n = 0;
+            foreach (string line in sc.Split('\n')) if (line.StartsWith("try { $r =")) n++;
+            for (int i = 0; i < n; i++) o.AppendLine("DET:" + i + ":" + (i % 3 == 0 ? "1" : i % 3 == 1 ? "0" : "NA"));
+            pr.Output = o.ToString();
+            return pr;
+        };
+
         Application.EnableVisualStyles();
         if (args.Length > 2) Theme.SetMode(args[2] == "escuro" ? ThemeMode.Escuro : ThemeMode.Claro, false);
         MainForm f = new MainForm(sys);

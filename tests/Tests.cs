@@ -32,6 +32,7 @@ namespace DebloatWin.Tests
             BackupRoundTrip();
             Exporter(dumpDir);
             UpdaterTests();
+            DetectionTests(dumpDir);
             if (dumpDir != null) DumpScripts(dumpDir);
 
             Console.WriteLine();
@@ -271,6 +272,87 @@ namespace DebloatWin.Tests
             {
                 Directory.CreateDirectory(dumpDir);
                 File.WriteAllText(Path.Combine(dumpDir, "_exportado-completo.ps1"), ps, new UTF8Encoding(true));
+            }
+        }
+
+        // ------------------------------------------------------------------
+        static void DetectionTests(string dumpDir)
+        {
+            Section("Detecção do que já está aplicado");
+            List<Tweak> all = Catalog.All();
+            Tweak ext = all.Find(delegate(Tweak t) { return t.Id == "ui.ext"; });
+            Tweak sug = all.Find(delegate(Tweak t) { return t.Id == "priv.sugestoes"; });
+            Tweak svc = all.Find(delegate(Tweak t) { return t.Id == "perf.servicos"; });
+            Tweak nvidia = all.Find(delegate(Tweak t) { return t.Id == "tel.nvidia"; });
+            Tweak tasks = all.Find(delegate(Tweak t) { return t.Id == "tel.tasks"; });
+            Tweak bing = all.Find(delegate(Tweak t) { return t.Id == "apps.bing"; });
+            Tweak temp = all.Find(delegate(Tweak t) { return t.Id == "tool.temp"; });
+
+            FakeSystem sys = new FakeSystem();
+            sys.WriteValue(@"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "HideFileExt", RegKind.DWord, "0"); // já feito à mão
+            sys.WriteValue(@"HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager", "SystemPaneSuggestionsEnabled", RegKind.DWord, "0"); // 1 de 12
+            sys.AddService("MapsBroker", 2); sys.AddService("PcaSvc", 3); sys.AddService("TrkWks", 4); sys.AddService("RemoteRegistry", 4);
+
+            Detector d = new Detector(sys);
+            d.DetectFast(all);
+            Check(d.Summarize(ext).State == TweakState.Applied, "ajuste feito fora do app aparece como já aplicado");
+            TweakStatus ps = d.Summarize(sug);
+            Check(ps.State == TweakState.Partial && ps.Applied == 1 && ps.Known == 12, "parcial mostra quantos de quantos (1/12)");
+            TweakStatus ss = d.Summarize(svc);
+            Check(ss.State == TweakState.Partial && ss.Applied == 3 && ss.Known == 4, "serviços: Desativado conta como Manual; serviço ausente é ignorado");
+            Check(d.Summarize(nvidia).State == TweakState.NotApplicable, "NVIDIA ausente: nada a fazer neste PC");
+            Check(d.Summarize(tasks).State == TweakState.Checking, "tarefas ficam 'verificando' até o PowerShell responder");
+            Check(d.Summarize(temp).State == TweakState.Unknown, "limpezas não têm estado (sem etiqueta)");
+
+            // verificação lenta: uma única execução, respostas por índice
+            string seen = null;
+            sys.PowerShellHandler = delegate(string script)
+            {
+                seen = script;
+                StringBuilder o = new StringBuilder();
+                int n = 0;
+                foreach (string line in script.Split('\n')) if (line.StartsWith("try { $r =")) n++;
+                for (int i = 0; i < n; i++)
+                {
+                    // tarefas: 1, apps do Bing: 0, resto: NA
+                    string v = i == 0 ? "1" : "NA";
+                    o.AppendLine("DET:" + i + ":" + v);
+                }
+                ProcResult p = new ProcResult(); p.Output = o.ToString(); return p;
+            };
+            int before = sys.Scripts.Count;
+            d.DetectSlow(new List<Tweak> { tasks, bing }, 60);
+            Check(sys.Scripts.Count == before + 1, "verificação lenta roda o PowerShell uma vez só");
+            Check(seen.Contains("function Get-DbwAppx") && seen.Contains("DET:"), "script de verificação tem o cache de apps e os marcadores");
+            Check(d.Summarize(tasks).State == TweakState.Applied, "tarefas desativadas aparecem como aplicado");
+            Check(d.Summarize(bing).State == TweakState.NotApplicable, "resposta NA vira 'nada a fazer'");
+            Check(d.SlowDone, "marca a verificação lenta como concluída");
+
+            Dictionary<int, DetectState> parsed = Detector.Parse("lixo\nDET:0:1\r\nDET:1:0\nDET:2:NA\nDET:3:?\nDET:x:1");
+            Check(parsed.Count == 4 && parsed[0] == DetectState.Applied && parsed[1] == DetectState.NotApplied &&
+                  parsed[2] == DetectState.NotApplicable && parsed[3] == DetectState.Unknown, "lê as respostas e ignora linhas estranhas");
+
+            // aplicar e desfazer mudam o estado detectado
+            FakeSystem s2 = new FakeSystem();
+            Engine e2 = new Engine(s2, Path.Combine(Path.GetTempPath(), "dbw-" + Guid.NewGuid().ToString("N")));
+            List<Tweak> regOnly = all.FindAll(delegate(Tweak t) { return t.Actions.TrueForAll(delegate(TweakAction a) { return a is RegSetAction; }); });
+            Detector d2 = new Detector(s2); d2.DetectFast(regOnly);
+            int appliedBefore = regOnly.FindAll(delegate(Tweak t) { return d2.Summarize(t).State == TweakState.Applied; }).Count;
+            SessionResult sr = e2.Apply(regOnly, false, "t", null);
+            Detector d3 = new Detector(s2); d3.DetectFast(regOnly);
+            Check(regOnly.TrueForAll(delegate(Tweak t) { TweakState st = d3.Summarize(t).State; return st == TweakState.Applied || st == TweakState.NotApplicable; }),
+                  "depois de aplicar, todos aparecem como aplicados");
+            e2.Undo(sr.Backup, null);
+            Detector d4 = new Detector(s2); d4.DetectFast(regOnly);
+            int appliedAfter = regOnly.FindAll(delegate(Tweak t) { return d4.Summarize(t).State == TweakState.Applied; }).Count;
+            Check(appliedAfter == appliedBefore, "depois de desfazer, volta ao estado detectado antes");
+
+            if (dumpDir != null)
+            {
+                List<TweakAction> slow = new List<TweakAction>();
+                foreach (Tweak t in all) foreach (TweakAction a in t.Actions) if (a.DetectScript() != null) slow.Add(a);
+                File.WriteAllText(Path.Combine(dumpDir, "_deteccao.ps1"), Detector.BuildScript(slow), new UTF8Encoding(true));
+                Console.WriteLine("  ações com verificação por PowerShell: " + slow.Count);
             }
         }
 

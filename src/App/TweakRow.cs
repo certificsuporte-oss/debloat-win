@@ -17,7 +17,21 @@ namespace DebloatWin.App
         Rectangle detailsRect;
         int descHeight, warnHeight, titleHeight, pillHeight;
 
+        TweakStatus status;
+
         public event EventHandler CheckedChanged;
+
+        /// <summary>Situação deste ajuste no PC (já aplicado, parcial…).</summary>
+        public TweakStatus Status
+        {
+            get { return status; }
+            set { status = value; Invalidate(); }
+        }
+
+        public bool AlreadyApplied
+        {
+            get { return status != null && (status.State == TweakState.Applied || status.State == TweakState.NotApplicable); }
+        }
         public event EventHandler DetailsRequested;
 
         public TweakRow(Tweak tweak, bool applicable, string notApplicableReason)
@@ -133,6 +147,14 @@ namespace DebloatWin.App
             y += Theme.S(8);
 
             int x = TextX;
+            string stLabel = Applicable && status != null ? status.Label : null;
+            if (stLabel != null)
+            {
+                Color sf = Theme.TagFg, sb = Theme.TagBg;
+                if (status.State == TweakState.Applied) { sf = Theme.RiskLowFg; sb = Theme.RiskLowBg; }
+                else if (status.State == TweakState.Partial) { sf = Theme.RiskMidFg; sb = Theme.RiskMidBg; }
+                x += Theme.DrawPill(g, stLabel, Theme.SmallBold, sf, sb, x, y) + Theme.S(6);
+            }
             foreach (string tag in Tags())
             {
                 bool strong = tag == "Sem desfazer";
