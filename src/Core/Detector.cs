@@ -85,6 +85,24 @@ namespace DebloatWin.Core
             "    $script:dbwCaps = @(Get-WindowsCapability -Online -ErrorAction SilentlyContinue | Where-Object { [string]$_.State -eq 'Installed' } | ForEach-Object { $_.Name })\n" +
             "  }\n" +
             "  return $script:dbwCaps\n" +
+            "}\n" +
+            // winget export devolve, em JSON, os pacotes instalados que o winget reconhece (instalados por ele ou não)
+            "$script:dbwWinget = $false\n" +
+            "function Get-DbwWingetIds {\n" +
+            "  if ($script:dbwWinget -eq $false) {\n" +
+            "    $script:dbwWinget = $null\n" +
+            "    try {\n" +
+            "      $w = (Get-Command winget.exe -ErrorAction Stop).Source\n" +
+            "      $tmp = Join-Path $env:TEMP ('dbw-winget-' + [guid]::NewGuid().ToString('N') + '.json')\n" +
+            "      & $w export -o $tmp --accept-source-agreements | Out-Null\n" +
+            "      if (Test-Path $tmp) {\n" +
+            "        $j = Get-Content $tmp -Raw | ConvertFrom-Json\n" +
+            "        $script:dbwWinget = @($j.Sources | ForEach-Object { $_.Packages } | ForEach-Object { $_.PackageIdentifier })\n" +
+            "        Remove-Item $tmp -Force -ErrorAction SilentlyContinue\n" +
+            "      }\n" +
+            "    } catch { $script:dbwWinget = $null }\n" +
+            "  }\n" +
+            "  return $script:dbwWinget\n" +
             "}\n";
 
         /// <summary>Monta um único script com a verificação de todas as ações que precisam de PowerShell.</summary>

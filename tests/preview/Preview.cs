@@ -58,8 +58,8 @@ static class PreviewProgram
                             if (args.Length > 3 && args[3] == "alternar") { f.GetType().GetMethod("CycleTheme", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(f, null); }
                             break;
                     case 1: Call(f, "SelectCategory", Category.Apps); break;
-                    case 2: Shot(f, outDir + "/2-rigido-apps.png"); Call(f, "SelectCategory", Category.Desempenho); break;
-                    case 3: Shot(f, outDir + "/3-desempenho.png");
+                    case 2: Shot(f, outDir + "/2-rigido-apps.png"); Call(f, "SelectCategory", Category.Programas); break;
+                    case 3: Shot(f, outDir + "/3-programas.png");
                             Tweak tw = Catalog.All().Find(delegate(Tweak x) { return x.Id == "perf.highperf"; });
                             DetailsForm d = new DetailsForm(tw); d.Show(); d.Location = new Point(0, 0);
                             d.Shown += delegate { };

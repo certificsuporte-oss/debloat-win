@@ -10,7 +10,7 @@ namespace DebloatWin.Core
     {
         // Troque aqui para renomear o programa.
         public const string Name = "Debloat Win";
-        public const string Version = "1.4.0";
+        public const string Version = "1.5.0";
         public const string DataFolderName = "DebloatWin";
     }
 
@@ -38,7 +38,8 @@ namespace DebloatWin.Core
         Desempenho,
         Jogos,
         Interface,
-        Ferramentas
+        Ferramentas,
+        Programas
     }
 
     public static class CategoryInfo
@@ -55,6 +56,7 @@ namespace DebloatWin.Core
                 case Category.Jogos: return "Jogos";
                 case Category.Interface: return "Interface";
                 case Category.Ferramentas: return "Ferramentas";
+                case Category.Programas: return "Instalar programas";
             }
             return c.ToString();
         }
@@ -71,6 +73,7 @@ namespace DebloatWin.Core
                 case Category.Jogos: return "Ajustes voltados a jogos e latência.";
                 case Category.Interface: return "Explorer, barra de tarefas e preferências visuais.";
                 case Category.Ferramentas: return "Manutenção e reparo. Executam uma vez e não têm desfazer.";
+                case Category.Programas: return "Instalados pelo winget, sempre na versão mais nova do fabricante. Desfazer só remove o que este app instalou.";
             }
             return "";
         }
@@ -86,6 +89,7 @@ namespace DebloatWin.Core
         public string Title;
         public string Description;
         public string Warning;            // aviso exibido em destaque (opcional)
+        public string Group;              // subgrupo dentro da categoria (usado em Programas)
         public Risk Risk = Risk.Baixo;
         public WinVersion Windows = WinVersion.Ambos;
         public bool Padrao;               // faz parte do preset Padrão (lista em Catalog.PadraoIds)

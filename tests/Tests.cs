@@ -80,7 +80,22 @@ namespace DebloatWin.Tests
             HashSet<string> catalogIds = new HashSet<string>();
             foreach (Tweak t in all) catalogIds.Add(t.Id);
             foreach (string id in Catalog.PadraoIds) Check(catalogIds.Contains(id), "id do Padrão existe no catálogo: " + id);
-            Check(padraoCount == Catalog.PadraoIds.Length && padraoCount == 92, "Padrão tem os 92 ajustes combinados");
+            Check(padraoCount == Catalog.PadraoIds.Length && padraoCount == 98, "Padrão tem os 92 ajustes + 6 programas combinados");
+            int apps = 0;
+            foreach (Tweak t in all)
+                foreach (TweakAction a in t.Actions)
+                {
+                    WingetInstallAction w = a as WingetInstallAction;
+                    if (w == null) continue;
+                    apps++;
+                    Check(t.Category == Category.Programas && t.Group != null, "programa na categoria certa e com grupo: " + t.Id);
+                    Check(w.PackageId.IndexOf(' ') < 0 && w.PackageId.Length > 3, "id do winget sem espaço: " + w.PackageId);
+                    if (w.PackageId.StartsWith("msstore:")) Check(w.AppxName != null, "app da Store tem nome Appx para detecção: " + t.Id);
+                    Check(w.CanUndo, "programa pode ser desinstalado pelo desfazer: " + t.Id);
+                    Check(w.DetectScript() != null, "programa tem detecção: " + t.Id);
+                }
+            Console.WriteLine("  programas: " + apps);
+            Check(apps == 89, "89 programas no catálogo");
             foreach (string id in new string[] { "apps.store", "upd.disable", "priv.camera", "priv.mic", "tool.netreset", "apps.ie" })
                 Check(!Array.Exists(Catalog.PadraoIds, delegate(string x) { return x == id; }), "fora do Padrão: " + id);
             foreach (Category c in Enum.GetValues(typeof(Category)))

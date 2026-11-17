@@ -67,6 +67,11 @@ namespace DebloatWin.Core
             c.DetectPs = ps;
             return t;
         }
+        public static Tweak Winget(this Tweak t, string packageId, string appxName)
+        {
+            t.Actions.Add(new WingetInstallAction(packageId, t.Title, appxName)); return t;
+        }
+        public static Tweak InGroup(this Tweak t, string group) { t.Group = group; return t; }
         public static Tweak Win10(this Tweak t) { t.Windows = WinVersion.Win10; return t; }
         public static Tweak Win11(this Tweak t) { t.Windows = WinVersion.Win11; return t; }
         public static Tweak Restart(this Tweak t) { t.NeedsRestart = true; return t; }
@@ -74,7 +79,7 @@ namespace DebloatWin.Core
         public static Tweak Warn(this Tweak t, string warning) { t.Warning = warning; return t; }
     }
 
-    public static class Catalog
+    public static partial class Catalog
     {
         // Chaves usadas com frequência
         const string Adv = @"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
@@ -110,7 +115,9 @@ namespace DebloatWin.Core
             "game.priority", "game.network", "ui.ext", "ui.numlock", "ui.chat", "ui.meetnow",
             "ui.people", "ui.endtask", "ui.hidden", "ui.thispc", "ui.classicmenu", "ui.searchicon",
             "ui.stickykeys", "ui.bsod", "ui.verbose", "ui.taskbarleft", "ui.seconds", "tool.temp",
-            "tool.wucache", "tool.recycle"
+            "tool.wucache", "tool.recycle",
+            // programas (Instalar programas)
+            "app.googlechrome", "app.winrar", "app.vlc", "app.anydesk", "app.netdesktopruntime8", "app.netdesktopruntime9"
         };
 
         static Tweak T(string id, Category cat, Risk risk, string title, string description)
@@ -133,6 +140,7 @@ namespace DebloatWin.Core
             Jogos();
             Interface();
             Ferramentas();
+            Programas();   // CatalogApps.cs (gerado de tools/apps.tsv)
             List<Tweak> r = list;
             list = null;
             HashSet<string> padrao = new HashSet<string>(PadraoIds);

@@ -1,0 +1,89 @@
+Navegadores	Google Chrome	Google.Chrome	Navegador do Google, o mais usado.
+Navegadores	Mozilla Firefox	Mozilla.Firefox	Navegador aberto da Mozilla, focado em privacidade.
+Navegadores	Brave	Brave.Brave	Navegador com bloqueio de anúncios embutido.
+Navegadores	Opera	Opera.Opera	Navegador com VPN gratuita e bloqueador de anúncios.
+Navegadores	Vivaldi	Vivaldi.Vivaldi	Navegador muito personalizável.
+Comunicação	WhatsApp	msstore:9NKSQGP7F2NH	WhatsApp oficial para Windows (pela Microsoft Store).	5319275A.WhatsAppDesktop
+Comunicação	Telegram	Telegram.TelegramDesktop	Telegram para computador.
+Comunicação	Discord	Discord.Discord	Chat de voz e texto, muito usado por gamers.
+Comunicação	Zoom	Zoom.Zoom	Videochamadas e reuniões.
+Comunicação	Microsoft Teams	Microsoft.Teams	Reuniões e chat do Microsoft 365.
+Comunicação	Slack	SlackTechnologies.Slack	Chat de equipes.
+Comunicação	Signal	OpenWhisperSystems.Signal	Mensageiro com criptografia de ponta a ponta.
+Comunicação	Thunderbird	Mozilla.Thunderbird	Cliente de e-mail gratuito da Mozilla.
+Escritório e PDF	LibreOffice	TheDocumentFoundation.LibreOffice	Pacote office gratuito (texto, planilha, apresentação).
+Escritório e PDF	ONLYOFFICE	ONLYOFFICE.DesktopEditors	Pacote office gratuito, muito compatível com arquivos do Office.
+Escritório e PDF	Adobe Acrobat Reader	Adobe.Acrobat.Reader.64-bit	Leitor de PDF da Adobe.
+Escritório e PDF	Foxit PDF Reader	Foxit.FoxitReader	Leitor de PDF leve.
+Escritório e PDF	Sumatra PDF	SumatraPDF.SumatraPDF	Leitor de PDF muito leve e rápido.
+Escritório e PDF	PDF24 Creator	geeksoftwareGmbH.PDF24Creator	Juntar, dividir, comprimir e converter PDF; impressora PDF.
+Escritório e PDF	PDFsam Basic	PDFsam.PDFsam	Juntar, dividir e girar páginas de PDF.
+Escritório e PDF	NAPS2	Cyanfish.NAPS2	Digitalizar documentos do scanner direto para PDF.
+Arquivos	7-Zip	7zip.7zip	Compactador gratuito (zip, rar, 7z).
+Arquivos	WinRAR	RARLab.WinRAR	Compactador clássico de arquivos RAR e ZIP.
+Arquivos	NanaZip	M2Team.NanaZip	7-Zip com visual moderno do Windows 11.
+Arquivos	PeaZip	Giorgiotani.Peazip	Compactador gratuito com muitos formatos.
+Arquivos	Everything	voidtools.Everything	Busca instantânea de arquivos no PC.
+Multimídia	VLC	VideoLAN.VLC	Toca qualquer vídeo e áudio.
+Multimídia	K-Lite Codec Pack	CodecGuide.K-LiteCodecPack.Standard	Codecs para abrir qualquer formato de vídeo.
+Multimídia	Spotify	Spotify.Spotify	Música por streaming.
+Multimídia	AIMP	AIMP.AIMP	Player de música leve.
+Multimídia	Audacity	Audacity.Audacity	Gravar e editar áudio.
+Multimídia	GIMP	GIMP.GIMP.3	Editor de imagens gratuito.
+Multimídia	Paint.NET	dotPDN.PaintDotNet	Editor de imagens simples e rápido.
+Multimídia	IrfanView	IrfanSkiljan.IrfanView	Visualizador de imagens leve.
+Multimídia	ShareX	ShareX.ShareX	Captura de tela e gravação com edição.
+Multimídia	OBS Studio	OBSProject.OBSStudio	Gravar a tela e fazer lives.
+Multimídia	HandBrake	HandBrake.HandBrake	Converter e comprimir vídeos.
+Acesso remoto	AnyDesk	AnyDesk.AnyDesk	Acesso remoto rápido.
+Acesso remoto	TeamViewer	TeamViewer.TeamViewer	Acesso remoto e suporte.
+Acesso remoto	TightVNC	GlavSoft.TightVNC	Servidor e visualizador VNC.
+Acesso remoto	Chrome Remote Desktop	Google.ChromeRemoteDesktopHost	Acesso remoto do Google (host).
+Nuvem	Google Drive	Google.GoogleDrive	Sincroniza arquivos com o Google Drive.
+Nuvem	Dropbox	Dropbox.Dropbox	Sincroniza arquivos com o Dropbox.
+Nuvem	MEGA	Mega.MEGASync	Sincroniza arquivos com o MEGA.
+Nuvem	Nextcloud	Nextcloud.NextcloudDesktop	Sincroniza com um servidor Nextcloud.
+Utilitários	Notepad++	Notepad++.Notepad++	Editor de texto avançado.
+Utilitários	PowerToys	Microsoft.PowerToys	Ferramentas extras da Microsoft (atalhos, janelas, renomear).
+Utilitários	Windows Terminal	Microsoft.WindowsTerminal	Terminal moderno da Microsoft.
+Utilitários	PowerShell 7	Microsoft.PowerShell	Versão nova do PowerShell.
+Utilitários	CrystalDiskInfo	CrystalDewWorld.CrystalDiskInfo	Saúde do HD/SSD (SMART).
+Utilitários	CrystalDiskMark	CrystalDewWorld.CrystalDiskMark	Teste de velocidade do disco.
+Utilitários	CPU-Z	CPUID.CPU-Z	Informações de processador, memória e placa-mãe.
+Utilitários	HWiNFO	REALiX.HWiNFO	Informações e sensores completos do hardware.
+Utilitários	HWMonitor	CPUID.HWMonitor	Temperaturas e tensões do hardware.
+Utilitários	TreeSize Free	JAMSoftware.TreeSize.Free	Mostra o que ocupa espaço no disco.
+Utilitários	WizTree	AntibodySoftware.WizTree	Análise rápida de espaço em disco.
+Utilitários	Revo Uninstaller	RevoUninstaller.RevoUninstaller	Desinstala programas e limpa sobras.
+Utilitários	Bulk Crap Uninstaller	Klocman.BulkCrapUninstaller	Desinstala vários programas de uma vez.
+Utilitários	Rufus	Rufus.Rufus	Cria pendrive de instalação do Windows.
+Utilitários	Ventoy	Ventoy.Ventoy	Pendrive com várias ISOs ao mesmo tempo.
+Utilitários	qBittorrent	qBittorrent.qBittorrent	Cliente de torrent sem anúncios.
+Utilitários	KeePassXC	KeePassXCTeam.KeePassXC	Gerenciador de senhas offline.
+Utilitários	Bitwarden	Bitwarden.Bitwarden	Gerenciador de senhas na nuvem.
+Utilitários	Advanced IP Scanner	Famatech.AdvancedIPScanner	Lista os aparelhos da rede local.
+Utilitários	Snappy Driver Installer	GlennDelahoy.SnappyDriverInstallerOrigin	Instala drivers faltando (offline).
+Utilitários	Malwarebytes	Malwarebytes.Malwarebytes	Verificação extra contra malware.
+Bibliotecas	Visual C++ 2015-2022 (64 bits)	Microsoft.VCRedist.2015+.x64	Biblioteca exigida por muitos programas e jogos.
+Bibliotecas	Visual C++ 2015-2022 (32 bits)	Microsoft.VCRedist.2015+.x86	Versão 32 bits; muitos programas antigos precisam.
+Bibliotecas	Visual C++ 2013 (64 bits)	Microsoft.VCRedist.2013.x64	Biblioteca antiga ainda exigida por alguns programas.
+Bibliotecas	Visual C++ 2013 (32 bits)	Microsoft.VCRedist.2013.x86	Versão 32 bits da biblioteca de 2013.
+Bibliotecas	Visual C++ 2010 (64 bits)	Microsoft.VCRedist.2010.x64	Biblioteca de 2010 para programas antigos.
+Bibliotecas	Visual C++ 2010 (32 bits)	Microsoft.VCRedist.2010.x86	Versão 32 bits da biblioteca de 2010.
+Bibliotecas	.NET Desktop Runtime 8	Microsoft.DotNet.DesktopRuntime.8	Necessário para programas feitos em .NET 8.
+Bibliotecas	.NET Desktop Runtime 9	Microsoft.DotNet.DesktopRuntime.9	Necessário para programas feitos em .NET 9.
+Bibliotecas	Java (JRE 8)	Oracle.JavaRuntimeEnvironment	Java da Oracle para programas e sites antigos.
+Bibliotecas	DirectX (pacote antigo)	Microsoft.DirectX	Componentes antigos do DirectX que jogos mais velhos pedem.
+Jogos	Steam	Valve.Steam	Loja e biblioteca de jogos da Valve.
+Jogos	Epic Games Launcher	EpicGames.EpicGamesLauncher	Loja da Epic (jogos grátis toda semana).
+Jogos	EA App	ElectronicArts.EADesktop	Jogos da EA.
+Jogos	Ubisoft Connect	Ubisoft.Connect	Jogos da Ubisoft.
+Jogos	GOG Galaxy	GOG.Galaxy	Jogos sem DRM da GOG.
+Jogos	Battle.net	Blizzard.BattleNet	Jogos da Blizzard.
+Jogos	Roblox	Roblox.Roblox	Plataforma de jogos Roblox.
+Desenvolvimento	Visual Studio Code	Microsoft.VisualStudioCode	Editor de código da Microsoft.
+Desenvolvimento	Git	Git.Git	Controle de versão.
+Desenvolvimento	GitHub Desktop	GitHub.GitHubDesktop	Git com interface gráfica.
+Desenvolvimento	Python 3	Python.Python.3.13	Linguagem Python.
+Desenvolvimento	Node.js LTS	OpenJS.NodeJS.LTS	JavaScript fora do navegador (versão estável).
+Desenvolvimento	Postman	Postman.Postman	Testar APIs.

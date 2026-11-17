@@ -529,3 +529,95 @@ namespace DebloatWin.Core
         protected override string UndoDescription() { return undoDescription ?? ("Desfazer: " + description); }
     }
 }
+
+namespace DebloatWin.Core
+{
+    /// <summary>
+    /// Instala um programa pelo winget. Se já estava instalado, não faz nada (e o desfazer não o remove).
+    /// Ids "msstore:XXXX" instalam pela Microsoft Store.
+    /// </summary>
+    public class WingetInstallAction : PsAction
+    {
+        public readonly string PackageId;   // ex.: Google.Chrome ou msstore:9NKSQGP7F2NH
+        public readonly string Name;
+        /// <summary>Para apps da Store: nome do pacote Appx usado para saber se já está instalado.</summary>
+        public readonly string AppxName;
+
+        public WingetInstallAction(string packageId, string name, string appxName)
+        {
+            PackageId = packageId; Name = name; AppxName = appxName;
+            TimeoutSeconds = 1800;
+        }
+
+        bool IsStore { get { return PackageId.StartsWith("msstore:"); } }
+        string Id { get { return IsStore ? PackageId.Substring(8) : PackageId; } }
+        string Source { get { return IsStore ? "msstore" : "winget"; } }
+
+        // Acha o winget; num Windows recém-instalado ele às vezes ainda não foi registrado para o usuário.
+        public const string WingetFn =
+            "function Get-DbwWinget {\n" +
+            "  $c = Get-Command winget.exe -ErrorAction SilentlyContinue\n" +
+            "  if (-not $c) {\n" +
+            "    try { Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe -ErrorAction Stop } catch { }\n" +
+            "    $c = Get-Command winget.exe -ErrorAction SilentlyContinue\n" +
+            "  }\n" +
+            "  if ($c) { return $c.Source }\n" +
+            "  $p = Get-ChildItem \"$env:ProgramFiles\\WindowsApps\\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\\winget.exe\" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1\n" +
+            "  if ($p) { return $p.FullName }\n" +
+            "  throw 'winget não encontrado. Atualize o \"Instalador de Aplicativo\" pela Microsoft Store e tente de novo.'\n" +
+            "}\n";
+
+        string InstalledCheck()
+        {
+            if (IsStore && AppxName != null)
+                return "(@(Get-AppxPackage -Name " + Ps.Q(AppxName) + " -ErrorAction SilentlyContinue).Count -gt 0)";
+            return "$(& $w list --id " + Ps.Q(Id) + " -e --accept-source-agreements | Out-Null; $LASTEXITCODE -eq 0)";
+        }
+
+        public override string Describe()
+        {
+            return string.Format("Instalar {0} pelo winget ({1}{2})", Name, Id, IsStore ? ", Microsoft Store" : "");
+        }
+
+        protected override string ApplyScript()
+        {
+            return "$ErrorActionPreference = 'Continue'\n" + WingetFn +
+                   "$w = Get-DbwWinget\n" +
+                   "if (" + InstalledCheck() + ") { Write-Output 'SKIP:Já estava instalado'; return }\n" +
+                   "& $w install --id " + Ps.Q(Id) + " -e --source " + Source + " --silent --accept-package-agreements --accept-source-agreements | Out-Null\n" +
+                   "$code = $LASTEXITCODE\n" +
+                   // 0 = ok; 0x8A150109/0x8A15010D = instalado, falta reiniciar
+                   "if ($code -eq 0 -or $code -eq -1978334967 -or $code -eq -1978334963) {\n" +
+                   "  Write-Output 'UNDO:1'\n" +
+                   "  if ($code -eq 0) { Write-Output 'Instalado' } else { Write-Output 'Instalado (reinicie para concluir)' }\n" +
+                   "  return\n" +
+                   "}\n" +
+                   // 0x8A150061 = já instalado; 0x8A15002B = sem atualização aplicável (já está na última)
+                   "if ($code -eq -1978335135 -or $code -eq -1978335189) { Write-Output 'SKIP:Já estava instalado'; return }\n" +
+                   "throw ('winget terminou com código ' + $code + ' (0x' + ('{0:X8}' -f $code) + ')')\n";
+        }
+
+        protected override string UndoScript()
+        {
+            if (IsStore && AppxName != null)
+                return "if ({UNDO}) { Get-AppxPackage -Name " + Ps.Q(AppxName) + " | Remove-AppxPackage -ErrorAction Stop }\n";
+            return "$ErrorActionPreference = 'Continue'\n" + WingetFn +
+                   "if ({UNDO}) {\n" +
+                   "  $w = Get-DbwWinget\n" +
+                   "  & $w uninstall --id " + Ps.Q(Id) + " -e --silent --accept-source-agreements | Out-Null\n" +
+                   "  if ($LASTEXITCODE -ne 0) { throw ('winget uninstall terminou com código ' + $LASTEXITCODE) }\n" +
+                   "}\n";
+        }
+
+        protected override string UndoDescription() { return "Desinstalar " + Name; }
+
+        public override string DetectScript()
+        {
+            if (IsStore && AppxName != null)
+                return "if (@(Get-DbwAppx) -contains " + Ps.Q(AppxName) + ") { '1' } else { '0' }";
+            // Get-DbwWingetIds: lista em cache de tudo o que o winget reconhece como instalado (ver Detector)
+            return "$ids = Get-DbwWingetIds\n" +
+                   "if ($null -eq $ids) { '?' } elseif ($ids -contains " + Ps.Q(Id) + ") { '1' } else { '0' }";
+        }
+    }
+}

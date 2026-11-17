@@ -98,7 +98,7 @@ namespace DebloatWin.App
             // quantos ajustes do Padrão valem neste Windows
             int inPadrao = 0;
             foreach (TweakRow r in rows) if (r.Applicable && r.Tweak.Padrao) inPadrao++;
-            presetButton.Text = "Padrão  ·  " + inPadrao + " ajustes";
+            presetButton.Text = "Padrão  ·  " + inPadrao + " itens";
 
             SelectCategory("todos");
             UpdateSummary();
@@ -532,16 +532,21 @@ namespace DebloatWin.App
             listPanel.SuspendLayout();
             listPanel.Controls.Clear();
             bool grouped = search.Length > 0 || currentCategory.Equals("todos");
-            Category? lastCat = null;
+            string lastHeader = null;
             int shown = 0;
             List<Control> items = new List<Control>();
             foreach (TweakRow r in rows)
             {
                 if (!Matches(r)) continue;
-                if (grouped && (lastCat == null || lastCat.Value != r.Tweak.Category))
+                // Programas têm subgrupos (Navegadores, Comunicação…), mostrados também dentro da própria categoria
+                string header = null;
+                if (grouped) header = CategoryInfo.Title(r.Tweak.Category);
+                if (r.Tweak.Group != null)
+                    header = grouped ? header + " — " + r.Tweak.Group : r.Tweak.Group;
+                if (header != null && header != lastHeader)
                 {
-                    items.Add(new GroupHeader(CategoryInfo.Title(r.Tweak.Category)));
-                    lastCat = r.Tweak.Category;
+                    items.Add(new GroupHeader(header));
+                    lastHeader = header;
                 }
                 items.Add(r);
                 shown++;

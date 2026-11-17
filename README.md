@@ -48,9 +48,18 @@ Ao abrir, o programa verifica cada ajuste na máquina e mostra uma etiqueta: **�
 - Depois de aplicar ou desfazer, o programa verifica de novo.
 - Limpezas e reparos (Ferramentas) não deixam rastro, então não têm etiqueta.
 
+### Instalar programas
+
+A categoria **Instalar programas** tem 89 programas populares (navegadores, comunicação, escritório e PDF, compactadores, multimídia, acesso remoto, nuvem, utilitários, bibliotecas como Visual C++/.NET/Java, jogos e desenvolvimento), instalados em silêncio pelo **winget**, sempre na versão mais nova do fabricante.
+
+- Os já instalados aparecem como **✓ Já instalado** (cartão verde).
+- Se o winget ainda não estiver ativo (comum num Windows 10 recém-instalado), o programa registra o "Instalador de Aplicativo" antes. Se não houver, avisa para atualizá-lo pela Microsoft Store.
+- **Desfazer** desinstala só o que o Debloat Win instalou; um programa que já estava no PC nunca é removido.
+- A lista fica em `tools/apps.tsv` (grupo, nome, id do winget, descrição). Para incluir um programa: acrescente a linha (confira o id em github.com/microsoft/winget-pkgs) e rode `python3 tools/gerar_apps.py`, que gera `src/Core/CatalogApps.cs`. Os ids foram conferidos no repositório oficial do winget; a lista do WinUtil (licença MIT) serviu de referência.
+
 ### Preset Padrão
 
-Um único preset, **Padrão**, com 92 dos 119 ajustes, escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive e Media Player), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
+Um único preset, **Padrão**, com 92 dos 119 ajustes mais 6 programas (Google Chrome, WinRAR, VLC, AnyDesk e .NET Desktop Runtime 8 e 9), escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive e Media Player), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
 
 O botão **Padrão** marca só o que ainda falta no PC (o que já está aplicado fica de fora). A lista fica em `Catalog.PadraoIds` (`src/Core/Catalog.cs`).
 
@@ -128,8 +137,8 @@ Rode os testes (`./build.sh`): eles conferem ids únicos, a lista do Padrão, av
 
 ## Situação dos testes
 
-- 1.495 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
-- 60 scripts PowerShell gerados (incluindo o de detecção) passam na checagem estrutural (chaves, parênteses, aspas).
+- 2.572 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
+- 238 scripts PowerShell gerados (incluindo os de detecção e de instalação de programas) passam na checagem estrutural (chaves, parênteses, aspas).
 - Tela testada no Mono com Windows 10 e 11 simulados.
 - **Ainda não foi executado num Windows real.** Teste primeiro numa máquina virtual ou num PC de teste antes de usar em clientes.
 

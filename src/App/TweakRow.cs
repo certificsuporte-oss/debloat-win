@@ -153,6 +153,7 @@ namespace DebloatWin.App
 
             int x = TextX;
             string stLabel = Applicable && status != null ? status.Label : null;
+            if (stLabel != null && Tweak.Category == Category.Programas && status.State == TweakState.Applied) stLabel = "✓ Já instalado";
             if (stLabel != null)
             {
                 Color sf = Theme.TagFg, sb = Theme.TagBg;
