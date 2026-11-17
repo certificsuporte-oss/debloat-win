@@ -1,6 +1,6 @@
 {
-  "versao": "1.2.0",
-  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/518ec94e7034a69bd1cdc107b80e764328c02047/atualizacao/DebloatWin.exe",
-  "sha256": "a62707cf4b55b14f7d2e34ae33e0db442e31ae2a375f0a0150a4c4d16e08cf22",
-  "notas": "Atualização automática: ao abrir, o programa baixa e instala sozinho a versão mais nova. Inclui o modo escuro nativo da 1.1.0."
+  "versao": "1.3.0",
+  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/40b2a1a6e84200f4fd6601317daf40d8dc5eb8f7/atualizacao/DebloatWin.exe",
+  "sha256": "8b1759945844aa7f3e383aaf1bc86880a894bec451a3cef6eafb8c60b0e3d1c1",
+  "notas": "Mostra o que já está aplicado no PC (inclusive por outras ferramentas), opção de esconder os já aplicados, presets marcam só o que falta e /status na linha de comando."
 }
