@@ -103,7 +103,7 @@ namespace DebloatWin.Core
             "apps.consumer", "apps.terceiros", "apps.bing", "apps.dicas", "apps.feedbackhub", "apps.officehub",
             "apps.solitaire", "apps.3d", "apps.mapas", "apps.skype", "apps.filmes", "apps.clipchamp",
             "apps.teamschat", "apps.powerautomate", "apps.cortanaapp", "apps.devhome", "apps.family", "apps.outlooknew",
-            "apps.onenote", "apps.todo", "apps.phonelink", "apps.musica", "apps.xbox", "apps.onedrive",
+            "apps.onenote", "apps.todo", "apps.mail", "apps.alarmes", "apps.phonelink", "apps.musica", "apps.xbox", "apps.onedrive",
             "apps.copilot", "apps.recall", "apps.iaapps", "apps.widgets", "apps.noticias", "apps.cortana",
             "apps.wmp", "apps.xps", "apps.workfolders", "apps.stepsrec", "apps.math", "priv.adid",
             "priv.sugestoes", "priv.explorerads", "priv.tailored", "priv.activity", "priv.searchhighlights", "priv.websearch",

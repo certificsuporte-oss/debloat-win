@@ -80,7 +80,7 @@ namespace DebloatWin.Tests
             HashSet<string> catalogIds = new HashSet<string>();
             foreach (Tweak t in all) catalogIds.Add(t.Id);
             foreach (string id in Catalog.PadraoIds) Check(catalogIds.Contains(id), "id do Padrão existe no catálogo: " + id);
-            Check(padraoCount == Catalog.PadraoIds.Length && padraoCount == 101, "Padrão tem os 92 ajustes + 5 programas + apps padrão + drivers e atualizações");
+            Check(padraoCount == Catalog.PadraoIds.Length && padraoCount == 103, "Padrão tem os 94 ajustes + 5 programas + apps padrão + drivers e atualizações");
             int apps = 0;
             foreach (Tweak t in all)
                 foreach (TweakAction a in t.Actions)
