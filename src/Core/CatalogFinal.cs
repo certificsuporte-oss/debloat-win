@@ -17,7 +17,31 @@ function Get-DbwWuErro($e) {
   }
   return ($e.Exception.Message + ' (0x' + $h + ')')
 }
-function Invoke-DbwWU([string]$criteria, [string]$nome, [bool]$soObrigatorias) {
+function Get-DbwPecas($ids) {
+  # Dispositivos que respondem a um id de hardware, com o driver que estão usando agora
+  $r = @()
+  foreach ($d in $script:DbwPnp) {
+    $hw = @($d.HardwareID) + @($d.CompatibleID)
+    $bate = $false
+    foreach ($i in $ids) { if ($i -and ($hw -contains $i)) { $bate = $true } }
+    if (-not $bate) { continue }
+    $sd = $script:DbwDrv[[string]$d.DeviceID]
+    $txt = 'sem driver'
+    if ($d.ConfigManagerErrorCode -ne 28 -and $sd -and $sd.DriverVersion) {
+      $dt = ''
+      if ($sd.DriverDate) { $dt = ', ' + ([datetime]$sd.DriverDate).ToString('dd/MM/yyyy') }
+      $txt = '""' + $d.Name + '"" (' + $sd.DriverProviderName + ' ' + $sd.DriverVersion + $dt + ')'
+    }
+    $r += New-Object PSObject -Property @{ Id = [string]$d.DeviceID; Nome = [string]$d.Name; Driver = $txt }
+  }
+  return $r
+}
+function Update-DbwPnp {
+  $script:DbwPnp = @(Get-CimInstance Win32_PnPEntity -ErrorAction SilentlyContinue)
+  $script:DbwDrv = @{}
+  foreach ($x in @(Get-CimInstance Win32_PnPSignedDriver -ErrorAction SilentlyContinue)) { if ($x.DeviceID) { $script:DbwDrv[[string]$x.DeviceID] = $x } }
+}
+function Invoke-DbwWU([string]$criteria, [string]$nome, [bool]$soObrigatorias, [bool]$drivers) {
   $s = New-Object -ComObject Microsoft.Update.Session
   $s.ClientApplicationID = 'Debloat Win'
   try { $r = $s.CreateUpdateSearcher().Search($criteria) } catch { throw ('Falha ao procurar ' + $nome + ': ' + (Get-DbwWuErro $_)) }
@@ -31,7 +55,13 @@ function Invoke-DbwWU([string]$criteria, [string]$nome, [bool]$soObrigatorias) {
     [void]$col.Add($u)
   }
   if ($col.Count -eq 0) { Write-Output ('SKIP:Nenhum(a) ' + $nome + ' pendente no Windows Update'); return }
-  Write-Output ([string]$col.Count + ' encontrado(s); baixando…')
+  Write-Output ([string]$col.Count + ' encontrado(s).')
+  # Antes de instalar: qual peça cada driver atende e o que ela usa hoje
+  $antes = @{}
+  if ($drivers) {
+    Update-DbwPnp
+    foreach ($u in $col) { $antes[$u.Identity.UpdateID] = @(Get-DbwPecas @([string]$u.DriverHardwareID)) }
+  }
   $d = $s.CreateUpdateDownloader()
   $d.Updates = $col
   try { [void]$d.Download() } catch { throw ('Falha ao baixar: ' + (Get-DbwWuErro $_)) }
@@ -41,15 +71,32 @@ function Invoke-DbwWU([string]$criteria, [string]$nome, [bool]$soObrigatorias) {
   $i = $s.CreateUpdateInstaller()
   $i.Updates = $inst
   try { $ir = $i.Install() } catch { throw ('Falha ao instalar: ' + (Get-DbwWuErro $_)) }
-  $ok = @(); $falhou = @()
+  if ($drivers) { Update-DbwPnp }
+  $ok = 0; $falhou = @()
   for ($k = 0; $k -lt $inst.Count; $k++) {
+    $u = $inst.Item($k)
     $rc = $ir.GetUpdateResult($k).ResultCode
-    if ($rc -eq 2 -or $rc -eq 3) { $ok += $inst.Item($k).Title } else { $falhou += $inst.Item($k).Title }
+    if ($rc -ne 2 -and $rc -ne 3) { $falhou += $u.Title; continue }
+    $ok++
+    if (-not $drivers) { Write-Output ('- ' + $u.Title); continue }
+    $novo = $u.Title
+    if ($u.DriverVerDate) { $novo += ' (' + ([datetime]$u.DriverVerDate).ToString('dd/MM/yyyy') + ')' }
+    $pecas = @($antes[$u.Identity.UpdateID])
+    if ($pecas.Count -eq 0) { Write-Output ('- ' + $novo); continue }
+    $agora = @{}
+    foreach ($x in @(Get-DbwPecas @([string]$u.DriverHardwareID))) { $agora[$x.Id] = $x }
+    foreach ($p in $pecas) {
+      $depois = 'novo: ' + $novo
+      $a = $agora[$p.Id]
+      if ($a -and $a.Driver -ne $p.Driver) { $depois = 'agora ' + $a.Driver }
+      elseif ($a) { $depois += ' (entra em uso depois de reiniciar)' }
+      Write-Output ('- ' + $p.Nome + ': antes ' + $p.Driver + ' -> ' + $depois)
+    }
   }
-  if ($ok.Count -gt 0) { Write-Output ([string]$ok.Count + ' instalado(s): ' + ($ok -join '; ')) }
+  if ($ok -gt 0) { Write-Output ([string]$ok + ' instalado(s).') }
   if ($falhou.Count -gt 0) { Write-Output ('Não instalou: ' + ($falhou -join '; ')) }
   if ($ir.RebootRequired) { Write-Output 'Reinicie o PC para concluir.' }
-  if ($ok.Count -eq 0) { throw ('Nenhum(a) ' + $nome + ' foi instalado(a)') }
+  if ($ok -eq 0) { throw ('Nenhum(a) ' + $nome + ' foi instalado(a)') }
 }
 ";
 
@@ -95,7 +142,7 @@ function Invoke-DbwSdio([string]$exe, [string]$script, [int]$minutos) {
                    "$ErrorActionPreference = 'Stop'\n" + WuFn +
                    "$pol = (Get-ItemProperty 'HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate' -ErrorAction SilentlyContinue).ExcludeWUDriversInQualityUpdate\n" +
                    "if ($pol -eq 1) { Write-Output 'Aviso: o ajuste \"Não instalar drivers pelo Windows Update\" está ligado e pode esconder drivers.' }\n" +
-                   "Invoke-DbwWU \"IsInstalled=0 and Type='Driver' and IsHidden=0\" 'driver' $false\n",
+                   "Invoke-DbwWU \"IsInstalled=0 and Type='Driver' and IsHidden=0\" 'driver' $false $true\n",
                    3600);
 
             T("fim.driverssdio", c, Risk.Baixo, "Instalar drivers que ainda faltarem (SDIO)",
@@ -146,7 +193,7 @@ Write-Output 'Se algum driver pedir, reinicie o PC.'
               .Restart()
               .Cmd("Procurar e instalar atualizações pelo Windows Update",
                    "$ErrorActionPreference = 'Stop'\n" + WuFn +
-                   "Invoke-DbwWU \"IsInstalled=0 and Type='Software' and IsHidden=0\" 'atualização' $true\n",
+                   "Invoke-DbwWU \"IsInstalled=0 and Type='Software' and IsHidden=0\" 'atualização' $true $false\n",
                    10800);
         }
     }

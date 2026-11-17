@@ -278,7 +278,7 @@ namespace DebloatWin.Core
                 else if (line.Trim().Length > 0) visible.AppendLine(line.Trim());
             }
             string output = visible.ToString().Trim();
-            if (output.Length > 600) output = output.Substring(0, 600) + "…";
+            if (output.Length > 6000) output = output.Substring(0, 6000) + "…";
 
             if (r.TimedOut || fails.Count > 0 || r.ExitCode != 0)
             {

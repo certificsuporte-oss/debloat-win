@@ -10,7 +10,7 @@ namespace DebloatWin.Core
     {
         // Troque aqui para renomear o programa.
         public const string Name = "Debloat Win";
-        public const string Version = "1.7.0";
+        public const string Version = "1.7.1";
         public const string DataFolderName = "DebloatWin";
     }
 
