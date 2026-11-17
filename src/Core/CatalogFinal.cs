@@ -17,6 +17,55 @@ function Get-DbwWuErro($e) {
   }
   return ($e.Exception.Message + ' (0x' + $h + ')')
 }
+function Write-DbwProg($pct, [string]$txt) {
+  # No app: linha PROGRESS: lida ao vivo. No .ps1 exportado: barra de progresso do PowerShell.
+  if ($env:DBW_LIVE) { [Console]::Out.WriteLine('PROGRESS:' + $pct + '|' + $txt); [Console]::Out.Flush() }
+  elseif ($pct -ne '') { Write-Progress -Activity 'Windows Update' -Status $txt -PercentComplete ([int]$pct) }
+  else { Write-Progress -Activity 'Windows Update' -Status $txt }
+}
+function Get-DbwCurto([string]$t) {
+  if ($t -match 'KB\d+') { return $matches[0] }
+  if ($t.Length -gt 60) { return $t.Substring(0, 60) + '…' }
+  return $t
+}
+function New-DbwCallback {
+  # Objeto de automação com DISPID 0: é o que o Windows Update aceita como callback (BeginDownload/BeginInstall)
+  try {
+    if (-not ('DbwWuCallback' -as [type])) {
+      Add-Type -TypeDefinition @'
+using System.Runtime.InteropServices;
+[ComVisible(true)]
+[ClassInterface(ClassInterfaceType.AutoDispatch)]
+public class DbwWuCallback
+{
+    [DispId(0)]
+    public void Invoke(object job, object args) { }
+}
+'@
+    }
+    return (New-Object DbwWuCallback)
+  } catch { return $null }
+}
+function Wait-DbwJob($job, [string]$fase, $col) {
+  $ultimo = ''
+  $cem = $null
+  while (-not $job.IsCompleted) {
+    # Join com tempo (em vez de Start-Sleep) deixa o COM entregar os avisos do Windows Update nesta thread (STA)
+    [void][System.Threading.Thread]::CurrentThread.Join(700)
+    if ($job.IsCompleted) { break }
+    try {
+      $pr = $job.GetProgress()
+      $n = [int]$pr.CurrentUpdateIndex
+      $txt = $fase
+      if ($col.Count -gt 1) { $txt += ' ' + ($n + 1) + ' de ' + $col.Count }
+      if ($n -ge 0 -and $n -lt $col.Count) { $txt += ' (' + (Get-DbwCurto $col.Item($n).Title) + ')' }
+      $linha = [string]$pr.PercentComplete + '|' + $txt
+      if ($linha -ne $ultimo) { Write-DbwProg ([string]$pr.PercentComplete) $txt; $ultimo = $linha }
+      # segurança: 100% por mais de 3 minutos sem o job encerrar → segue para o End (que espera o fim)
+      if ([int]$pr.PercentComplete -ge 100) { if (-not $cem) { $cem = Get-Date } elseif (((Get-Date) - $cem).TotalMinutes -gt 3) { break } }
+    } catch { }
+  }
+}
 function Get-DbwPecas($ids) {
   # Dispositivos que respondem a um id de hardware, com o driver que estão usando agora
   $r = @()
@@ -44,6 +93,7 @@ function Update-DbwPnp {
 function Invoke-DbwWU([string]$criteria, [string]$nome, [bool]$soObrigatorias, [bool]$drivers) {
   $s = New-Object -ComObject Microsoft.Update.Session
   $s.ClientApplicationID = 'Debloat Win'
+  Write-DbwProg '' 'Procurando no Windows Update (pode levar alguns minutos)…'
   try { $r = $s.CreateUpdateSearcher().Search($criteria) } catch { throw ('Falha ao procurar ' + $nome + ': ' + (Get-DbwWuErro $_)) }
   $col = New-Object -ComObject Microsoft.Update.UpdateColl
   foreach ($u in $r.Updates) {
@@ -62,15 +112,35 @@ function Invoke-DbwWU([string]$criteria, [string]$nome, [bool]$soObrigatorias, [
     Update-DbwPnp
     foreach ($u in $col) { $antes[$u.Identity.UpdateID] = @(Get-DbwPecas @([string]$u.DriverHardwareID)) }
   }
+  $cb = New-DbwCallback
   $d = $s.CreateUpdateDownloader()
   $d.Updates = $col
-  try { [void]$d.Download() } catch { throw ('Falha ao baixar: ' + (Get-DbwWuErro $_)) }
+  $job = $null
+  if ($cb) { try { $job = $d.BeginDownload($cb, $cb, $null) } catch { $job = $null } }
+  if ($job) {
+    Wait-DbwJob $job 'Baixando' $col
+    try { [void]$d.EndDownload($job) } catch { throw ('Falha ao baixar: ' + (Get-DbwWuErro $_)) }
+    try { $job.CleanUp() } catch { }
+  } else {
+    Write-DbwProg '' ('Baixando ' + $col.Count + ' item(ns)…')
+    try { [void]$d.Download() } catch { throw ('Falha ao baixar: ' + (Get-DbwWuErro $_)) }
+  }
   $inst = New-Object -ComObject Microsoft.Update.UpdateColl
   foreach ($u in $col) { if ($u.IsDownloaded) { [void]$inst.Add($u) } }
   if ($inst.Count -eq 0) { throw 'Nada foi baixado do Windows Update' }
   $i = $s.CreateUpdateInstaller()
   $i.Updates = $inst
-  try { $ir = $i.Install() } catch { throw ('Falha ao instalar: ' + (Get-DbwWuErro $_)) }
+  $job = $null
+  if ($cb) { try { $job = $i.BeginInstall($cb, $cb, $null) } catch { $job = $null } }
+  if ($job) {
+    Wait-DbwJob $job 'Instalando' $inst
+    try { $ir = $i.EndInstall($job) } catch { throw ('Falha ao instalar: ' + (Get-DbwWuErro $_)) }
+    try { $job.CleanUp() } catch { }
+  } else {
+    Write-DbwProg '' ('Instalando ' + $inst.Count + ' item(ns)…')
+    try { $ir = $i.Install() } catch { throw ('Falha ao instalar: ' + (Get-DbwWuErro $_)) }
+  }
+  Write-DbwProg '100' 'Concluído'
   if ($drivers) { Update-DbwPnp }
   $ok = 0; $falhou = @()
   for ($k = 0; $k -lt $inst.Count; $k++) {
@@ -111,6 +181,9 @@ function Get-DbwNomes($l) {
 ";
 
         const string SdioFn = @"
+function Write-DbwProg($pct, [string]$txt) {
+  if ($env:DBW_LIVE) { [Console]::Out.WriteLine('PROGRESS:' + $pct + '|' + $txt); [Console]::Out.Flush() }
+}
 function Find-DbwSdio {
   $nome = 'SDIO_R*.exe'
   if ([Environment]::Is64BitOperatingSystem) { $nome = 'SDIO_x64_R*.exe' }
@@ -155,6 +228,7 @@ if ($antes.Count -eq 0) { Write-Output 'SKIP:Nenhum dispositivo sem driver'; ret
 Write-Output ('Sem driver: ' + (Get-DbwNomes $antes))
 $exe = Find-DbwSdio
 if (-not $exe) {
+  Write-DbwProg '' 'Instalando o SDIO pelo winget…'
   $w = Get-DbwWinget
   & $w install --id GlennDelahoy.SnappyDriverInstallerOrigin -e --source winget --silent --accept-package-agreements --accept-source-agreements | Out-Null
   $exe = Find-DbwSdio
@@ -169,7 +243,9 @@ Set-Content -Path $s2 -Encoding ASCII -Value @('verbose 384', 'logging on', 'ena
 $regra = 'Debloat Win - SDIO'
 try { New-NetFirewallRule -DisplayName $regra -Direction Inbound -Program $exe -Action Allow -Profile Any -ErrorAction Stop | Out-Null } catch { }
 try {
+  Write-DbwProg '' 'SDIO: atualizando a lista de drivers…'
   Invoke-DbwSdio $exe $s1 20
+  Write-DbwProg '' ('SDIO: baixando e instalando drivers para ' + $antes.Count + ' dispositivo(s)…')
   Invoke-DbwSdio $exe $s2 90
 } finally {
   Get-NetFirewallRule -DisplayName $regra -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue

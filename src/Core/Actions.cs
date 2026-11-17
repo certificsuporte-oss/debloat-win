@@ -272,6 +272,7 @@ namespace DebloatWin.Core
             foreach (string raw in (r.Output ?? "").Split('\n'))
             {
                 string line = raw.TrimEnd('\r');
+                if (line.StartsWith("PROGRESS:")) continue;
                 if (line.StartsWith("UNDO:")) undoValues.Add(line.Substring(5));
                 else if (line.StartsWith("SKIP:")) skips.Add(line.Substring(5).Trim());
                 else if (line.StartsWith("FAIL:")) fails.Add(line.Substring(5).Trim());

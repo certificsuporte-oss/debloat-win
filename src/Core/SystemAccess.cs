@@ -57,6 +57,8 @@ namespace DebloatWin.Core
         bool KeyIsEmpty(string fullKey);
         void DeleteEmptyKey(string fullKey);
         ProcResult RunPowerShell(string script, int timeoutSeconds);
+        /// <summary>Recebe ao vivo as linhas "PROGRESS:pct|texto" dos scripts (null = ninguém ouvindo).</summary>
+        Action<string> LiveOutput { get; set; }
     }
 
     public static class RegPath
@@ -117,6 +119,8 @@ namespace DebloatWin.Core
     /// <summary>Implementação real, para o Windows.</summary>
     public class WindowsSystem : ISystem
     {
+        public Action<string> LiveOutput { get; set; }
+
         static RegistryKey Base(string hive)
         {
             RegistryHive h;
@@ -256,13 +260,24 @@ namespace DebloatWin.Core
             psi.RedirectStandardError = true;
             psi.StandardOutputEncoding = Encoding.UTF8;
             psi.StandardErrorEncoding = Encoding.UTF8;
+            psi.EnvironmentVariables["DBW_LIVE"] = "1";   // scripts mandam progresso como PROGRESS:
+            Action<string> live = LiveOutput;
 
             StringBuilder sb = new StringBuilder();
             object gate = new object();
             using (Process p = new Process())
             {
                 p.StartInfo = psi;
-                p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e) { if (e.Data != null) lock (gate) sb.AppendLine(e.Data); };
+                p.OutputDataReceived += delegate(object s, DataReceivedEventArgs e)
+                {
+                    if (e.Data == null) return;
+                    if (e.Data.StartsWith("PROGRESS:"))
+                    {
+                        if (live != null) { try { live(e.Data.Substring(9)); } catch { } }
+                        return;
+                    }
+                    lock (gate) sb.AppendLine(e.Data);
+                };
                 p.ErrorDataReceived += delegate(object s, DataReceivedEventArgs e) { if (e.Data != null) lock (gate) sb.AppendLine(e.Data); };
                 p.Start();
                 p.BeginOutputReadLine();

@@ -118,6 +118,26 @@ namespace DebloatWin.Core
         }
 
         // ------------------------------------------------------------------
+        /// <summary>Converte "pct|texto" (pct vazio = sem porcentagem) em mensagem de progresso.</summary>
+        public static Action<string> LiveHandler(ProgressHandler progress, int done, int total, string title)
+        {
+            return delegate(string payload)
+            {
+                progress(done, total, LiveMessage(title, payload));
+            };
+        }
+
+        public static string LiveMessage(string title, string payload)
+        {
+            int bar = payload.IndexOf('|');
+            string pct = bar < 0 ? "" : payload.Substring(0, bar).Trim();
+            string text = bar < 0 ? payload : payload.Substring(bar + 1).Trim();
+            int n;
+            string msg = title + " — ";
+            if (int.TryParse(pct, out n) && n >= 0 && n <= 100) msg += n + "% · ";
+            return (msg + text).TrimEnd(' ', '—', '·');
+        }
+
         public SessionResult Apply(IList<Tweak> tweaks, bool restorePoint, string windowsInfo, ProgressHandler progress)
         {
             SessionResult result = new SessionResult();
@@ -153,6 +173,7 @@ namespace DebloatWin.Core
             foreach (Tweak t in tweaks)
             {
                 if (progress != null) progress(done, total, t.Title);
+                sys.LiveOutput = progress == null ? null : LiveHandler(progress, done, total, t.Title);
                 TweakResult tr = new TweakResult();
                 tr.Tweak = t;
                 TweakUndo tu = new TweakUndo();
@@ -206,6 +227,7 @@ namespace DebloatWin.Core
                 result.RestorePointMessage = (result.RestorePointMessage ?? "") + " | Não foi possível gravar o backup: " + ex.Message;
             }
 
+            sys.LiveOutput = null;
             if (progress != null) progress(total, total, "Concluído");
             return result;
         }

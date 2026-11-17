@@ -73,6 +73,8 @@ A categoria **Instalar programas** tem só o básico: **Google Chrome, WinRAR, V
 
 Nenhum deles tem desfazer. O Windows Update não reinicia o PC sozinho: o log avisa quando precisar.
 
+Enquanto rodam, a janela de progresso mostra a etapa e a porcentagem ao vivo (ex.: "Instalar atualizações do Windows — 45% · Baixando 2 de 5 (KB5034441)"). O log guarda só o resultado: para drivers, o driver antigo e o novo de cada peça.
+
 ### Preset Padrão
 
 Um único preset, **Padrão**, com 92 dos 119 ajustes mais os 5 programas (Google Chrome, WinRAR, VLC, AnyDesk e Adobe Acrobat Reader), o VLC/Adobe como padrão e, por último, drivers e Windows Update, escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive e Media Player), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
@@ -153,7 +155,7 @@ Rode os testes (`./build.sh`): eles conferem ids únicos, a lista do Padrão, av
 
 ## Situação dos testes
 
-- 1.600 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
+- 1.605 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
 - 75 scripts PowerShell gerados (incluindo os de detecção e de instalação de programas) passam na checagem estrutural (chaves, parênteses, aspas).
 - Tela testada no Mono com Windows 10 e 11 simulados.
 - **Ainda não foi executado num Windows real.** Teste primeiro numa máquina virtual ou num PC de teste antes de usar em clientes.

@@ -236,6 +236,17 @@ namespace DebloatWin.Tests
             Check(r.Undo != null && r.Undo.Script.Contains("@('\\A\\B','\\A\\C')"), "valores UNDO entram no script de desfazer");
             Check(!r.Message.Contains("UNDO:"), "linhas UNDO não aparecem para o usuário");
 
+            sys.PowerShellHandler = delegate(string s) { ProcResult p = new ProcResult(); p.Output = "PROGRESS:45|Baixando\nInstalado"; return p; };
+            r = tasks.Apply(sys);
+            Check(r.Outcome == ActionOutcome.Ok && !r.Message.Contains("PROGRESS"), "linhas PROGRESS não vão para o log");
+            Check(Engine.LiveMessage("Instalar atualizações do Windows", "45|Baixando 2 de 5 (KB5034441)") ==
+                  "Instalar atualizações do Windows — 45% · Baixando 2 de 5 (KB5034441)", "progresso ao vivo com porcentagem");
+            Check(Engine.LiveMessage("Drivers", "|Procurando…") == "Drivers — Procurando…", "progresso ao vivo sem porcentagem");
+            Check(Engine.LiveMessage("Drivers", "100|") == "Drivers — 100%", "progresso só com porcentagem");
+            List<string> vistos = new List<string>();
+            Engine.LiveHandler(delegate(int d, int tot, string m) { vistos.Add(d + "/" + tot + " " + m); }, 3, 10, "WU")("7|Instalando");
+            Check(vistos.Count == 1 && vistos[0] == "3/10 WU — 7% · Instalando", "progresso ao vivo mantém o item atual");
+
             // falha no meio: o que já mudou continua com desfazer
             sys.PowerShellHandler = delegate(string s) { ProcResult p = new ProcResult(); p.ExitCode = 1; p.Output = "UNDO:\\A\\B\nDesativada: \\A\\B\nFAIL:C: Acesso negado"; return p; };
             r = tasks.Apply(sys);

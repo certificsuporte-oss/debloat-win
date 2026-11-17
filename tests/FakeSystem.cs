@@ -12,6 +12,7 @@ namespace DebloatWin.Tests
             new Dictionary<string, Dictionary<string, RegValue>>(StringComparer.OrdinalIgnoreCase);
         public readonly List<string> Scripts = new List<string>();
         public Func<string, ProcResult> PowerShellHandler;
+        public Action<string> LiveOutput { get; set; }
 
         public FakeSystem()
         {
