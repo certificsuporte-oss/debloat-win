@@ -1,6 +1,6 @@
 {
-  "versao": "1.3.1",
-  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/1bbc04bc721fa08efab9b543657fa8957b707f6e/atualizacao/DebloatWin.exe",
-  "sha256": "c3f0833573a3e646d045a6ff12c1a5e37ec0d706881ed7fc913e192c7e1cfc43",
-  "notas": "Corrige a remoção de apps (erro 0x80070002 no Windows 10 22H2) e do OneDrive; log mais legível."
+  "versao": "1.3.2",
+  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/cddb2de80582c095248a7c6d7d1e20ff23e8c861/atualizacao/DebloatWin.exe",
+  "sha256": "fd050fd26ce2778c49196f9b386a51d4258d4897beabe00c1b550fce06e40e63",
+  "notas": "A caixa de seleção fica verde (já aplicado) ou amarela (parcial). Inclui as correções de remoção de apps e do OneDrive da 1.3.1."
 }
