@@ -133,7 +133,7 @@ namespace DebloatWin.App
 
             // ---- situação por área (2/3) + coluna da direita (1/3) ----
             int ah = AreasHeight();
-            int leftW = (w - Gap) * 2 / 3, rightW = w - Gap - leftW;
+            int leftW = (w - Gap) * 58 / 100, rightW = w - Gap - leftW;
             Rectangle areas = new Rectangle(x0, y, leftW, ah);
             Card(g, areas);
             Heading(g, "Situação por área", areas);
@@ -181,7 +181,7 @@ namespace DebloatWin.App
             Card(g, res);
             Heading(g, "Recursos do PC", res);
             SystemSnapshot s = Data.Stats ?? new SystemSnapshot();
-            int colW = (res.Width - Theme.S(40)) / 3;
+            int colW = (res.Width - Theme.S(40)) / 4;
             int vy = res.Y + Theme.S(54);
             Resource(g, new Rectangle(res.X + Theme.S(20), vy, colW, Theme.S(60)), "cpu",
                 s.CpuPercent >= 0 ? s.CpuPercent + "%" : "—", "Processador", s.CpuPercent >= 0 ? s.CpuPercent / 100f : -1);
@@ -189,6 +189,8 @@ namespace DebloatWin.App
                 s.RamTotalGb > 0 ? Fmt(s.RamUsedGb) + "/" + Fmt(s.RamTotalGb) : "—", "Memória (GB)", s.RamTotalGb > 0 ? (float)(s.RamUsedGb / s.RamTotalGb) : -1);
             Resource(g, new Rectangle(res.X + Theme.S(20) + colW * 2, vy, colW, Theme.S(60)), "drive",
                 s.DiskTotalGb > 0 ? Fmt(s.DiskFreeGb) + " GB" : "—", "Livre em " + s.DiskName, s.DiskTotalGb > 0 ? (float)(1 - s.DiskFreeGb / s.DiskTotalGb) : -1);
+            Resource(g, new Rectangle(res.X + Theme.S(20) + colW * 3, vy, colW, Theme.S(60)), "services",
+                s.Processes >= 0 ? s.Processes.ToString() : "—", "Processos", -1);
             if (!string.IsNullOrEmpty(s.CpuName) && res.Height > Theme.S(150))
                 TextRenderer.DrawText(g, s.CpuName.Trim(), Theme.Small, new Rectangle(res.X + Theme.S(20), res.Bottom - Theme.S(34), res.Width - Theme.S(40), Theme.S(20)),
                     Theme.Muted, TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);

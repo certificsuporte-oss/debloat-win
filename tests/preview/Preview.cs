@@ -45,7 +45,7 @@ static class PreviewProgram
         {
             SystemSnapshot ss = new SystemSnapshot();
             ss.CpuName = "Intel(R) Core(TM) i5-6500 CPU @ 3.20GHz"; ss.CpuPercent = 14;
-            ss.RamTotalGb = 7.9; ss.RamUsedGb = 3.1; ss.DiskTotalGb = 237; ss.DiskFreeGb = 141; ss.DiskName = "C:";
+            ss.RamTotalGb = 7.9; ss.RamUsedGb = 3.1; ss.DiskTotalGb = 237; ss.DiskFreeGb = 141; ss.DiskName = "C:"; ss.Processes = 211;
             return ss;
         };
         Application.EnableVisualStyles();

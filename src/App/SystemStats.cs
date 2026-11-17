@@ -12,6 +12,7 @@ namespace DebloatWin.App
         public double RamTotalGb = -1, RamUsedGb = -1;
         public double DiskTotalGb = -1, DiskFreeGb = -1;
         public string DiskName = "C:";
+        public int Processes = -1;
     }
 
     public class SystemStats
@@ -69,6 +70,13 @@ namespace DebloatWin.App
                     s.RamTotalGb = m.ullTotalPhys / 1073741824.0;
                     s.RamUsedGb = (m.ullTotalPhys - m.ullAvailPhys) / 1073741824.0;
                 }
+            }
+            catch { }
+            try
+            {
+                System.Diagnostics.Process[] ps = System.Diagnostics.Process.GetProcesses();
+                s.Processes = ps.Length;
+                foreach (System.Diagnostics.Process x in ps) x.Dispose();
             }
             catch { }
             try
