@@ -1,6 +1,6 @@
 {
-  "versao": "1.5.0",
-  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/c52dcfc1ff737a8e8240df64667aa1c2a6226abe/atualizacao/DebloatWin.exe",
-  "sha256": "241c2a2d73ca26fe2ac50bcd628b564db24244e8a46a132e7736df910065881f",
-  "notas": "Nova seção Instalar programas: 89 programas pelo winget, com detecção dos já instalados. O Padrão agora também instala Chrome, WinRAR, VLC, AnyDesk e .NET Desktop 8 e 9."
+  "versao": "1.6.0",
+  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/d13f43e421a41b8e652e4def915646cbaa9faabd/atualizacao/DebloatWin.exe",
+  "sha256": "2911d90cd0bb0fa1c67a7595404977c6f27625d23d20e977198b6c768d67cd94",
+  "notas": ""
 }
