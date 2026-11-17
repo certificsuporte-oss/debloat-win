@@ -40,6 +40,14 @@ static class PreviewProgram
             return pr;
         };
 
+        sys.WriteValue(@"HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "ProcessorNameString", RegKind.String, "Intel(R) Core(TM) i5-6500 CPU @ 3.20GHz");
+        SystemStats.Override = delegate
+        {
+            SystemSnapshot ss = new SystemSnapshot();
+            ss.CpuName = "Intel(R) Core(TM) i5-6500 CPU @ 3.20GHz"; ss.CpuPercent = 14;
+            ss.RamTotalGb = 7.9; ss.RamUsedGb = 3.1; ss.DiskTotalGb = 237; ss.DiskFreeGb = 141; ss.DiskName = "C:";
+            return ss;
+        };
         Application.EnableVisualStyles();
         if (args.Length > 2) Theme.SetMode(args[2] == "escuro" ? ThemeMode.Escuro : ThemeMode.Claro, false);
         MainForm f = new MainForm(sys);
@@ -54,34 +62,44 @@ static class PreviewProgram
             {
                 switch (step++)
                 {
-                    case 0: Shot(f, outDir + "/1-todos.png"); f.GetType().GetMethod("ApplyPreset", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(f, null);
+                    case 0: Shot(f, outDir + "/1-dashboard.png");
                             if (args.Length > 3 && args[3] == "alternar") { f.GetType().GetMethod("CycleTheme", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(f, null); }
+                            Call(f, "SelectCategory", Category.Apps); f.GetType().GetMethod("ApplyPreset", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(f, null); break;
+                    case 1: Shot(f, outDir + "/2-debloat.png"); Call(f, "SelectCategory", Category.Desempenho); break;
+                    case 2: Shot(f, outDir + "/3-otimizacoes.png"); Call(f, "SelectCategory", "configuracoes"); break;
+                    case 3: Shot(f, outDir + "/4-configuracoes.png"); Call(f, "SelectCategory", "ferramentas");
                             break;
-                    case 1: Call(f, "SelectCategory", Category.Apps); break;
-                    case 2: Shot(f, outDir + "/2-rigido-apps.png"); Call(f, "SelectCategory", Category.Programas); break;
-                    case 3: Shot(f, outDir + "/3-programas.png");
+                    case 4: Shot(f, outDir + "/5-ferramentas.png");
                             Tweak tw = Catalog.All().Find(delegate(Tweak x) { return x.Id == "perf.ultimate"; });
                             DetailsForm d = new DetailsForm(tw); d.Show(); d.Location = new Point(0, 0);
-                            d.Shown += delegate { };
                             dlg = d; break;
-                    case 4: Shot(dlg, outDir + "/4-detalhes.png"); dlg.Close();
+                    case 5: Shot(dlg, outDir + "/6-detalhes.png"); dlg.Close();
+                            ConfirmDialog cd = new ConfirmDialog("Aplicar 62 itens neste PC?", "41 não têm desfazer (apps removidos, limpezas e instalações). Um ponto de restauração será criado antes. Drivers e Windows Update rodam por último e podem levar até 40 minutos.",
+                                "Sem desfazer pelo programa (só pelo ponto de restauração):\n  • Remover OneDrive\n  • Remover apps do Xbox", "Aplicar", "shield", false);
+                            cd.StartPosition = FormStartPosition.Manual; cd.Location = new Point(0, 0); cd.Show(); dlg = cd; break;
+                    case 6: Shot(dlg, outDir + "/7-confirmar.png"); dlg.Close();
                             fakeSys.PowerShellHandler = delegate(string sc) { System.Threading.Thread.Sleep(15); ProcResult pr = new ProcResult(); pr.Output = sc.Contains("Get-AppxPackage") ? "Removido: app" : "SKIP:não se aplica neste PC simulado"; return pr; };
                             Engine eng = new Engine(fakeSys, Engine.DefaultDataDir());
                             System.Collections.Generic.List<Tweak> sel = Catalog.All().FindAll(delegate(Tweak x) { return x.Padrao && x.AppliesTo(WinVersion.Win11); });
+                            sel = sel.GetRange(0, 70);
                             ProgressForm pf = null;
-                            pf = new ProgressForm("Aplicando ajustes", delegate(ProgressHandler progress, Action<string> log)
+                            pf = new ProgressForm("Aplicando Padrão", delegate(ProgressHandler progress, Action<string> log)
                             {
-                                eng.TweakDone = delegate(TweakResult tr) { log((tr.Outcome == ActionOutcome.Ok ? "[OK]     " : tr.Outcome == ActionOutcome.Skipped ? "[IGNOR.] " : "[FALHA]  ") + tr.Tweak.Title); };
-                                SessionResult r = eng.Apply(sel, false, "Windows 11 (simulado)", progress);
+                                eng.TweakDone = delegate(TweakResult tr) { log((tr.Outcome == ActionOutcome.Ok ? "[OK]     " : tr.Outcome == ActionOutcome.Skipped ? "[IGNOR.] " : "[FALHA]  ") + tr.Tweak.Title); pf.ReportResult(tr.Tweak.Title, tr.Outcome, tr.Outcome == ActionOutcome.Ok ? null : (tr.Messages.Count > 0 ? tr.Messages[0] : null)); };
+                                SessionResult r = eng.Apply(sel, false, "Windows 11 (simulado)", delegate(int dn, int tt, string m) { progress(dn, tt, m); if (dn == 40) progress(dn, tt, m + " — 45% · Baixando 2 de 5 (KB5034441)"); if (dn == 40) System.Threading.Thread.Sleep(6000); });
                                 pf.LogPath = r.LogPath; pf.OfferRestart = true;
                                 return string.Format("Concluído: {0} aplicados, {1} ignorados, {2} com falha.", r.Count(ActionOutcome.Ok), r.Count(ActionOutcome.Skipped), r.Count(ActionOutcome.Failed));
                             });
+                            pf.TotalItems = sel.Count;
+                            pf.Queue = sel.ConvertAll(delegate(Tweak x) { return x.Title; });
                             pf.StartPosition = FormStartPosition.Manual; pf.Location = new Point(0, 0);
-                            pf.Show(); dlg = pf; t.Interval = 4000; break;
-                    case 5: Shot(dlg, outDir + "/5-progresso.png"); dlg.Close(); t.Interval = 900;
+                            pf.Show(); dlg = pf; t.Interval = 3500; break;
+                    case 7: Shot(dlg, outDir + "/8-progresso.png"); t.Interval = 6000; break;
+                    case 8: Shot(dlg, outDir + "/9-concluido.png"); dlg.Close(); t.Interval = 900;
                             HistoryForm h = new HistoryForm(new Engine(fakeSys, Engine.DefaultDataDir()));
                             h.StartPosition = FormStartPosition.Manual; h.Location = new Point(0, 0); h.Show(); dlg = h; break;
-                    case 6: Shot(dlg, outDir + "/6-historico.png"); dlg.Close(); break;
+                    case 9: Shot(dlg, outDir + "/10-historico.png"); dlg.Close(); Call(f, "SelectCategory", "dashboard"); break;
+                    case 10: Shot(f, outDir + "/11-dashboard-depois.png"); break;
                     default: t.Stop(); f.Close(); break;
                 }
             }

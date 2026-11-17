@@ -21,5 +21,5 @@ python3 tests/ps_lint.py build/ps-check
 if [ "${1:-}" = "preview" ]; then
   mcs $OPTS $REFS -target:winexe -out:build/Preview.exe -main:PreviewProgram src/Core/*.cs src/App/*.cs tests/FakeSystem.cs tests/preview/Preview.cs
   mkdir -p build/preview
-  xvfb-run -a -s "-screen 0 1280x860x24" mono build/Preview.exe build/preview "${2:-19045}" "${3:-claro}"
+  xvfb-run -a -s "-screen 0 1300x880x24" mono build/Preview.exe build/preview "${2:-19045}" "${3:-claro}"
 fi

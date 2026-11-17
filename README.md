@@ -32,11 +32,18 @@ Ao abrir, o programa consulta `atualizacao/versao.json` neste repositório. Se h
 3. Clique em **Aplicar**. Por padrão, o programa cria um **ponto de restauração** antes.
 4. Reinicie o computador no final.
 
-### Tema claro e escuro
+### Telas e tema
 
-O programa segue o tema do Windows (claro ou escuro) e muda junto se você trocar o tema com ele aberto. O botão **Tema** no canto superior direito alterna entre **Sistema**, **Escuro** e **Claro**, e a escolha fica salva. No escuro, a barra de título, as barras de rolagem e os menus do Windows também ficam escuros.
+Design "Dark premium" (versão 1.9.0): escuro é o tema principal, com menu lateral fixo.
 
-Cada ajuste mostra o **risco** (Seguro, Médio, Alto), avisos, se tem desfazer e em qual Windows funciona. **Ver detalhes** mostra exatamente o que é alterado e o PowerShell equivalente.
+- **Dashboard**: visão geral do sistema (Windows, versão e build, status geral, drivers), situação de cada área em barras, anel do Padrão, recursos do PC (processador, memória e disco, só leitura) e atividades recentes. O botão **Aplicar Padrão** marca o que falta e abre a confirmação.
+- **Debloat**, **Programas**, **Serviços do Windows**, **Limpeza**, **Otimizações** (em abas), **Ferramentas** (drivers e atualizações, histórico, logs): cartões em duas colunas, com filtros *Todos / Pendentes / Já aplicados / Sem desfazer / Risco médio ou alto* e barra de ações fixa (*Marcar pendentes, Desmarcar, Ver resultados, Exportar .ps1, Aplicar*).
+- **Configurações**: tema (Escuro, Claro ou Seguir o Windows), ponto de restauração antes de aplicar e atualização automática. Ficam em `HKCU\Software\DebloatWin` (`Tema`, `PontoRestauracao`, `AtualizarAuto`).
+- **Execução**: porcentagem geral, contagem por estado (concluído, falha, ignorado, em andamento, aguardando), operação atual com a % ao vivo do Windows Update, lista de operações e log ao lado.
+
+No escuro, a barra de título, as barras de rolagem e os menus do Windows também ficam escuros. Ícones são vetoriais (desenhados pelo programa) e a fonte é a Segoe UI Variable no Windows 11 e a Segoe UI no Windows 10.
+
+Cada ajuste mostra o **risco** (Seguro, Médio, Alto), avisos, se tem desfazer e em qual Windows funciona. **Detalhes** mostra exatamente o que é alterado e o PowerShell equivalente.
 
 ### O que já está feito neste PC
 
@@ -155,8 +162,8 @@ Rode os testes (`./build.sh`): eles conferem ids únicos, a lista do Padrão, av
 
 ## Situação dos testes
 
-- 1.605 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
-- 75 scripts PowerShell gerados (incluindo os de detecção e de instalação de programas) passam na checagem estrutural (chaves, parênteses, aspas).
+- 1.353 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
+- 63 scripts PowerShell gerados (incluindo os de detecção e de instalação de programas) passam na checagem estrutural (chaves, parênteses, aspas).
 - Tela testada no Mono com Windows 10 e 11 simulados.
 - **Ainda não foi executado num Windows real.** Teste primeiro numa máquina virtual ou num PC de teste antes de usar em clientes.
 

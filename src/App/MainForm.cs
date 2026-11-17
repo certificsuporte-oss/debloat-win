@@ -1,4 +1,5 @@
-// Janela principal.
+// Janela principal: menu lateral, Dashboard, páginas de ajustes, Configurações.
+// Só a camada visual mudou no design de 17/11/2026; Engine, Detector, catálogo e scripts são os mesmos.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -14,36 +15,46 @@ namespace DebloatWin.App
 {
     public class MainForm : ThemedForm
     {
+        // ---- dados ----
         readonly Engine engine;
         readonly ISystem sys;
         Detector detector;
-        bool hideApplied;
-        CheckToggle hideToggle;
         readonly WinInfo win;
         readonly bool isAdmin;
         readonly List<Tweak> all;
         readonly List<TweakRow> rows = new List<TweakRow>();
-        readonly Dictionary<object, NavItem> nav = new Dictionary<object, NavItem>();
+        readonly SystemStats stats = new SystemStats();
+        SystemSnapshot lastStats;
 
-        object currentCategory = "todos";   // "todos" ou Category
+        // ---- páginas ----
+        class ViewDef
+        {
+            public string Key, Title, Subtitle, Icon;
+            public Predicate<Tweak> Filter;
+            public Category[] Tabs;
+        }
+        readonly List<ViewDef> views = new List<ViewDef>();
+        readonly Dictionary<string, NavItem> nav = new Dictionary<string, NavItem>();
+        string currentView = "dashboard";
+        Category currentTab = Category.Privacidade;
+        string statusFilter = "todos";   // todos | pendentes | aplicados
+        bool onlyNoUndo, onlyRisk;
         string search = "";
 
-        // controles
-        Panel sidebar, content, header, bottom, contentTop;
-        FlowLayoutPanel listPanel;
-        Label catTitle, catSubtitle, summary, statusLine, titleLabel, verLabel;
-        TextBox searchBox;
+        // ---- controles ----
+        Panel sidebar, main, listPage, listHeader, settingsPage, dashHost, actionBar;
+        DashboardView dashboard;
+        FlowLayoutPanel listPanel, chipsRow, tabsRow;
+        Label viewTitle, viewSubtitle;
         SearchField searchField;
-        CheckToggle restoreCheck;
-        FlatButton themeBtn;
-        LinkLabel clearLink;
-        readonly List<Label> sideLabels = new List<Label>();
+        TextBox searchBox;
+        FilterChip chipAll, chipPending, chipApplied, chipNoUndo, chipRisk;
+        FlatButton applyBtn, exportBtn, resultsBtn, markBtn, clearBtn, toolHistBtn, toolLogsBtn;
+        Toast toast;
+        Timer searchTimer, statsTimer;
         UserPreferenceChangedEventHandler systemThemeHandler;
-        FlatButton applyBtn, exportBtn;
-        LinkLabel checkVisible, uncheckVisible;
-        FlatButton presetButton;
-        ToolTip tips = new ToolTip();
-        Timer searchTimer;
+        readonly ToolTip tips = new ToolTip();
+        string selectionLine1 = "", selectionLine2 = "";
 
         public MainForm(ISystem sys) : this(sys, null) { }
 
@@ -55,25 +66,22 @@ namespace DebloatWin.App
             win = WinInfo.Detect(sys);
             isAdmin = IsAdministrator();
             all = Catalog.All();
+            try
+            {
+                RegValue cpu = sys.ReadValue(@"HKLM\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "ProcessorNameString");
+                if (cpu != null) stats.CpuName = cpu.Data;
+            }
+            catch { }
 
             Text = AppInfo.Name + " " + AppInfo.Version;
             BackColor = Theme.Back;
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(Theme.S(1180), Theme.S(780));
-            MinimumSize = new Size(Theme.S(900), Theme.S(600));
+            ClientSize = new Size(Theme.S(1240), Theme.S(800));
+            MinimumSize = new Size(Theme.S(980), Theme.S(640));
             KeyPreview = true;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
-            BuildHeader();
-            BuildSidebar();
-            BuildBottom();
-            BuildContent();
-
-            Controls.Add(content);
-            Controls.Add(bottom);
-            Controls.Add(sidebar);
-            Controls.Add(header);
-
+            DefineViews();
             foreach (Tweak t in all)
             {
                 string reason = null;
@@ -89,33 +97,66 @@ namespace DebloatWin.App
                 rows.Add(r);
             }
 
-            // o que já está aplicado neste PC: registro e serviços agora; o resto em segundo plano
+            BuildSidebar();
+            BuildMain();
+            Controls.Add(main);
+            Controls.Add(sidebar);
+
             detector = new Detector(sys);
             detector.DetectFast(ApplicableTweaks());
             UpdateStatuses();
             Shown += delegate { StartSlowDetection(); };
 
-            // quantos ajustes do Padrão valem neste Windows
-            int inPadrao = 0;
-            foreach (TweakRow r in rows) if (r.Applicable && r.Tweak.Padrao) inPadrao++;
-            presetButton.Text = "Padrão  ·  " + inPadrao + " itens";
+            statsTimer = new Timer();
+            statsTimer.Interval = 2000;
+            statsTimer.Tick += delegate { lastStats = stats.Read(); if (currentView == "dashboard") RefreshDashboard(); };
+            lastStats = stats.Read();
+            statsTimer.Start();
 
-            SelectCategory("todos");
+            SelectView("dashboard");
             UpdateSummary();
-            if (startupNotice != null) Flash(startupNotice);
+            if (startupNotice != null) Shown += delegate { ShowToast("info", "Debloat Win", startupNotice); };
 
-            // No modo "Sistema", acompanha o Windows quando o usuário troca claro/escuro
             systemThemeHandler = delegate(object s, UserPreferenceChangedEventArgs e)
             {
                 if (Theme.Mode != ThemeMode.Sistema || !IsHandleCreated) return;
-                BeginInvoke((MethodInvoker)delegate
-                {
-                    if (Theme.SetMode(ThemeMode.Sistema, false)) ApplyTheme();
-                });
+                BeginInvoke((MethodInvoker)delegate { if (Theme.SetMode(ThemeMode.Sistema, false)) ApplyTheme(); });
             };
             try { SystemEvents.UserPreferenceChanged += systemThemeHandler; } catch { }
-            FormClosed += delegate { try { SystemEvents.UserPreferenceChanged -= systemThemeHandler; } catch { } };
+            FormClosed += delegate
+            {
+                statsTimer.Stop();
+                try { SystemEvents.UserPreferenceChanged -= systemThemeHandler; } catch { }
+            };
         }
+
+        void DefineViews()
+        {
+            AddView("dashboard", "Dashboard", null, "dashboard", null, null);
+            AddView("debloat", "Debloat", "Apps pré-instalados, IA e recursos que vêm ligados de fábrica.", "debloat",
+                delegate(Tweak t) { return t.Category == Category.Apps; }, null);
+            AddView("programas", "Programas", CategoryInfo.Subtitle(Category.Programas), "apps",
+                delegate(Tweak t) { return t.Category == Category.Programas; }, null);
+            AddView("servicos", "Serviços do Windows", "Ajustes que mudam serviços do Windows: telemetria, SysMain, indexação e serviços pouco usados.", "services",
+                TweakRow.ChangesServices, null);
+            AddView("limpeza", "Limpeza", "Temporários, cache do Windows Update e Lixeira. Rodam uma vez e não têm desfazer.", "clean",
+                delegate(Tweak t) { return t.Category == Category.Ferramentas; }, null);
+            AddView("otimizacoes", "Otimizações", "Privacidade, telemetria, Windows Update, desempenho, jogos e interface.", "optimize",
+                delegate(Tweak t) { return t.Category == currentTab; },
+                new Category[] { Category.Privacidade, Category.Telemetria, Category.Atualizacoes, Category.Desempenho, Category.Jogos, Category.Interface });
+            AddView("ferramentas", "Ferramentas", "Drivers e atualizações (rodam sempre por último), histórico, desfazer e logs.", "tools",
+                delegate(Tweak t) { return t.Category == Category.Finalizar; }, null);
+            AddView("configuracoes", "Configurações", null, "settings", null, null);
+        }
+
+        void AddView(string key, string title, string subtitle, string icon, Predicate<Tweak> filter, Category[] tabs)
+        {
+            ViewDef v = new ViewDef();
+            v.Key = key; v.Title = title; v.Subtitle = subtitle; v.Icon = icon; v.Filter = filter; v.Tabs = tabs;
+            views.Add(v);
+        }
+
+        ViewDef View(string key) { return views.Find(delegate(ViewDef v) { return v.Key == key; }); }
 
         List<Tweak> ApplicableTweaks()
         {
@@ -134,9 +175,9 @@ namespace DebloatWin.App
                 if (IsHandleCreated && !IsDisposed)
                     BeginInvoke((MethodInvoker)delegate
                     {
-                        if (d != detector) return; // já foi substituído por uma verificação mais nova
+                        if (d != detector) return;
                         UpdateStatuses();
-                        if (hideApplied) RefreshList();
+                        if (statusFilter != "todos") RefreshList();
                     });
             });
         }
@@ -147,7 +188,7 @@ namespace DebloatWin.App
             detector = new Detector(sys);
             detector.DetectFast(ApplicableTweaks());
             UpdateStatuses();
-            if (hideApplied) RefreshList();
+            if (statusFilter != "todos") RefreshList();
             StartSlowDetection();
         }
 
@@ -156,303 +197,193 @@ namespace DebloatWin.App
             foreach (TweakRow r in rows)
                 if (r.Applicable) r.Status = detector.Summarize(r.Tweak);
             UpdateSummary();
-        }
-
-        /// <summary>Reaplica as cores do tema atual em toda a janela, sem reabrir o programa.</summary>
-        void ApplyTheme()
-        {
-            SuspendLayout();
-            BackColor = Theme.Back;
-            ForeColor = Theme.Text;
-            header.BackColor = Theme.Surface;
-            titleLabel.ForeColor = Theme.Text;
-            verLabel.ForeColor = Theme.Muted;
-            statusLine.ForeColor = isAdmin ? Theme.Muted : Theme.RiskHighFg;
-            sidebar.BackColor = Theme.Surface;
-            foreach (Label l in sideLabels) l.ForeColor = Theme.Muted;
-            content.BackColor = Theme.Back;
-            contentTop.BackColor = Theme.Back;
-            catTitle.ForeColor = Theme.Text;
-            catSubtitle.ForeColor = Theme.Muted;
-            foreach (LinkLabel l in new LinkLabel[] { clearLink, checkVisible, uncheckVisible })
-            {
-                l.LinkColor = Theme.Link; l.ActiveLinkColor = Theme.AccentHover; l.VisitedLinkColor = Theme.Link;
-            }
-            searchField.ApplyColors();
-            listPanel.BackColor = Theme.Back;
-            bottom.BackColor = Theme.Surface;
-            summary.ForeColor = Theme.Text;
-            themeBtn.Text = Theme.ModeLabel(Theme.Mode);
-            Native.TitleBar(this, Theme.Dark);
-            Native.Control(listPanel, Theme.Dark);
-            Native.Control(searchBox, Theme.Dark);
-            ResumeLayout(true);
-            foreach (TweakRow r in rows) r.Invalidate();
-            Refresh();
-        }
-
-        void CycleTheme()
-        {
-            ThemeMode next = Theme.Mode == ThemeMode.Sistema ? ThemeMode.Escuro
-                           : Theme.Mode == ThemeMode.Escuro ? ThemeMode.Claro : ThemeMode.Sistema;
-            Theme.SetMode(next, true);
-            ApplyTheme();
+            UpdateChipCounts();
+            RefreshDashboard();
+            sidebar.Invalidate();
         }
 
         static bool IsAdministrator()
         {
-            try
-            {
-                return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
-            }
+            try { return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator); }
             catch { return false; }
         }
 
-        // ------------------------------------------------------------------
-        void BuildHeader()
-        {
-            header = new Panel();
-            header.Dock = DockStyle.Top;
-            header.Height = Theme.S(64);
-            header.BackColor = Theme.Surface;
-            header.Paint += delegate(object s, PaintEventArgs e)
-            {
-                using (Pen p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, 0, header.Height - 1, header.Width, header.Height - 1);
-            };
-
-            Label title = new Label();
-            titleLabel = title;
-            title.Text = AppInfo.Name;
-            title.Font = Theme.Title;
-            title.ForeColor = Theme.Text;
-            title.AutoSize = true;
-            title.Location = new Point(Theme.S(20), Theme.S(16));
-            header.Controls.Add(title);
-
-            Label ver = new Label();
-            verLabel = ver;
-            ver.Text = "v" + AppInfo.Version;
-            ver.Font = Theme.Small;
-            ver.ForeColor = Theme.Muted;
-            ver.AutoSize = true;
-            header.Controls.Add(ver);
-            header.Layout += delegate { ver.Location = new Point(title.Right + Theme.S(6), title.Top + Theme.S(10)); };
-
-            statusLine = new Label();
-            statusLine.AutoSize = false;
-            statusLine.TextAlign = ContentAlignment.MiddleRight;
-            statusLine.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            statusLine.Size = new Size(Theme.S(520), Theme.S(40));
-            statusLine.Location = new Point(header.Width - Theme.S(540), Theme.S(12));
-            statusLine.ForeColor = isAdmin ? Theme.Muted : Theme.RiskHighFg;
-            statusLine.Text = win.ToString() + "   •   " + (isAdmin ? "Administrador" : "SEM permissão de administrador");
-            header.Controls.Add(statusLine);
-
-            themeBtn = new FlatButton("Tema: Sistema", false);
-            themeBtn.Font = Theme.Body;
-            themeBtn.Width = Theme.S(150);
-            themeBtn.Height = Theme.S(32);
-            themeBtn.Text = Theme.ModeLabel(Theme.Mode);
-            themeBtn.Click += delegate { CycleTheme(); };
-            tips.SetToolTip(themeBtn, "Alterna entre seguir o Windows, escuro e claro.");
-            header.Controls.Add(themeBtn);
-
-            header.Resize += delegate
-            {
-                themeBtn.Location = new Point(header.Width - themeBtn.Width - Theme.S(20), (header.Height - themeBtn.Height) / 2);
-                statusLine.Left = themeBtn.Left - statusLine.Width - Theme.S(14);
-            };
-        }
-
+        // ==================================================================
+        // Menu lateral
         void BuildSidebar()
         {
             sidebar = new Panel();
             sidebar.Dock = DockStyle.Left;
-            sidebar.Width = Theme.S(250);
+            sidebar.Width = Theme.S(256);
             sidebar.BackColor = Theme.Surface;
-            sidebar.Padding = new Padding(0, Theme.S(12), 0, Theme.S(12));
-            sidebar.Paint += delegate(object s, PaintEventArgs e)
+            sidebar.Paint += PaintSidebar;
+            sidebar.Resize += delegate { sidebar.Invalidate(); };
+
+            int y = Theme.S(84);
+            foreach (ViewDef v in views)
             {
-                using (Pen p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, sidebar.Width - 1, 0, sidebar.Width - 1, sidebar.Height);
-            };
-
-            int y = Theme.S(12);
-            y = SideLabel("PRESET", y);
-            presetButton = new FlatButton("Padrão", true);
-            presetButton.Location = new Point(Theme.S(16), y);
-            presetButton.Width = Theme.S(218);
-            presetButton.Click += delegate { ApplyPreset(); };
-            tips.SetToolTip(presetButton, "Marca os ajustes do preset Padrão que ainda faltam neste PC. Revise e clique em Aplicar.");
-            sidebar.Controls.Add(presetButton);
-            y += presetButton.Height + Theme.S(6);
-            LinkLabel clear = new LinkLabel();
-            clearLink = clear;
-            clear.Text = "Limpar seleção";
-            clear.AutoSize = true;
-            clear.LinkColor = Theme.Link;
-            clear.Location = new Point(Theme.S(18), y + Theme.S(2));
-            clear.LinkClicked += delegate { foreach (TweakRow r in rows) r.Checked = false; Flash("Seleção limpa."); };
-            sidebar.Controls.Add(clear);
-            y += Theme.S(34);
-
-            y = SideLabel("CATEGORIAS", y);
-            NavItem allItem = new NavItem("Todos os ajustes", "todos");
-            AddNav(allItem, ref y);
-            foreach (Category c in Enum.GetValues(typeof(Category)))
-                AddNav(new NavItem(CategoryInfo.Title(c), c), ref y);
-
-            FlatButton hist = new FlatButton("Histórico e desfazer", false);
-            hist.Font = Theme.Body;
-            hist.Width = Theme.S(218);
-            hist.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
-            hist.Location = new Point(Theme.S(16), Theme.S(700));
-            hist.Click += delegate
-            {
-                using (HistoryForm h = new HistoryForm(engine)) h.ShowDialog(this);
-                Redetect();
-            };
-            sidebar.Controls.Add(hist);
-            sidebar.Resize += delegate { hist.Top = sidebar.Height - hist.Height - Theme.S(16); };
+                NavItem item = new NavItem(v.Title, v.Key, v.Icon);
+                item.Location = new Point(0, y);
+                item.Width = sidebar.Width - 1;
+                item.Click += delegate(object s, EventArgs e) { SelectView((string)((NavItem)s).Key); };
+                nav[v.Key] = item;
+                sidebar.Controls.Add(item);
+                y += item.Height + Theme.S(4);
+            }
         }
 
-        int SideLabel(string text, int y)
+        int PendingCount()
         {
-            Label l = new Label();
-            l.Text = text;
-            l.Font = Theme.SmallBold;
-            l.ForeColor = Theme.Muted;
-            l.AutoSize = true;
-            l.Location = new Point(Theme.S(20), y);
-            sidebar.Controls.Add(l);
-            sideLabels.Add(l);
-            return y + Theme.S(26);
+            int n = 0;
+            foreach (TweakRow r in rows) if (r.Applicable && r.Tweak.Padrao && !r.AlreadyApplied) n++;
+            return n;
         }
 
-        void AddNav(NavItem item, ref int y)
+        void PaintSidebar(object sender, PaintEventArgs e)
         {
-            item.Location = new Point(0, y);
-            item.Width = sidebar.Width - 1;
-            item.Click += delegate(object s, EventArgs e) { SelectCategory(((NavItem)s).Key); };
-            nav[item.Key] = item;
-            sidebar.Controls.Add(item);
-            y += item.Height + Theme.S(2);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (Pen p = new Pen(Theme.Border)) g.DrawLine(p, sidebar.Width - 1, 0, sidebar.Width - 1, sidebar.Height);
+
+            Rectangle logo = new Rectangle(Theme.S(20), Theme.S(22), Theme.S(38), Theme.S(38));
+            Theme.FillRounded(g, logo, Theme.S(10), Theme.Accent, Color.Empty);
+            Icons.Draw(g, "logo", Rectangle.Inflate(logo, -Theme.S(8), -Theme.S(8)), Color.White, 2.2f);
+            TextRenderer.DrawText(g, AppInfo.Name, Theme.Subtitle, new Point(logo.Right + Theme.S(12), logo.Y + Theme.S(1)), Theme.Text, TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(g, "Versão " + AppInfo.Version, Theme.Small, new Point(logo.Right + Theme.S(12), logo.Y + Theme.S(22)), Theme.Muted, TextFormatFlags.NoPadding);
+
+            // cartão de status do sistema
+            int ch = Theme.S(100);
+            Rectangle card = new Rectangle(Theme.S(14), sidebar.Height - ch - Theme.S(16), sidebar.Width - Theme.S(29), ch);
+            Theme.FillRounded(g, card, Theme.S(10), Theme.Card, Theme.Border);
+            int pending = PendingCount();
+            int x = card.X + Theme.S(14), y = card.Y + Theme.S(12);
+            using (SolidBrush b = new SolidBrush(pending > 0 ? Theme.Warning : Theme.Success))
+                g.FillEllipse(b, x + Theme.S(3), y + Theme.S(5), Theme.S(8), Theme.S(8));
+            TextRenderer.DrawText(g, pending > 0 ? pending + " itens pendentes" : "Padrão aplicado", Theme.SmallBold,
+                new Point(x + Theme.S(20), y), Theme.Text, TextFormatFlags.NoPadding);
+            y += Theme.S(26);
+            Icons.Draw(g, "windows", new Rectangle(x, y, Theme.S(14), Theme.S(14)), Theme.Muted, 2f);
+            TextRenderer.DrawText(g, ShortWindows(), Theme.Small, new Rectangle(x + Theme.S(20), y - Theme.S(1), card.Width - Theme.S(40), Theme.S(18)),
+                Theme.TagFg, TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
+            y += Theme.S(24);
+            Icons.Draw(g, "shield", new Rectangle(x, y, Theme.S(14), Theme.S(14)), isAdmin ? Theme.Success : Theme.Danger, 2f);
+            TextRenderer.DrawText(g, isAdmin ? "Administrador" : "Sem administrador", Theme.Small, new Point(x + Theme.S(20), y - Theme.S(1)),
+                isAdmin ? Theme.RiskLowFg : Theme.RiskHighFg, TextFormatFlags.NoPadding);
         }
 
-        void BuildBottom()
+        string EditionName()
         {
-            bottom = new Panel();
-            bottom.Dock = DockStyle.Bottom;
-            bottom.Height = Theme.S(68);
-            bottom.BackColor = Theme.Surface;
-            bottom.Paint += delegate(object s, PaintEventArgs e)
+            string ed = win.IsHome ? "Home" : win.Edition;
+            if (ed.StartsWith("Professional", StringComparison.OrdinalIgnoreCase)) ed = "Pro";
+            else if (ed.StartsWith("Enterprise", StringComparison.OrdinalIgnoreCase)) ed = "Enterprise";
+            else if (ed.StartsWith("Education", StringComparison.OrdinalIgnoreCase)) ed = "Education";
+            return ("Windows " + (win.Version == WinVersion.Win11 ? "11 " : "10 ") + ed).Trim();
+        }
+
+        string ShortWindows() { return (EditionName() + " " + win.DisplayVersion).Trim(); }
+
+        // ==================================================================
+        // Área principal
+        void BuildMain()
+        {
+            main = new Panel();
+            main.Dock = DockStyle.Fill;
+            main.BackColor = Theme.Back;
+
+            // Dashboard (rola dentro do host)
+            dashHost = new Panel();
+            dashHost.Dock = DockStyle.Fill;
+            dashHost.AutoScroll = true;
+            dashHost.BackColor = Theme.Back;
+            Native.Track(dashHost);
+            dashboard = new DashboardView();
+            dashboard.Location = new Point(0, 0);
+            dashboard.Navigate += delegate(string key)
             {
-                using (Pen p = new Pen(Theme.Border)) e.Graphics.DrawLine(p, 0, 0, bottom.Width, 0);
+                if (key == "history") ShowHistory();
+                else if (key.StartsWith("otimizacoes:")) { currentTab = (Category)Enum.Parse(typeof(Category), key.Substring(12)); SelectView("otimizacoes"); }
+                else { SelectView(key); if (key != "dashboard") SetStatusFilter("pendentes"); }
             };
+            dashboard.ApplyButton.Click += delegate { ApplyPreset(); ApplySelected(); };
+            dashboard.HistoryButton.Click += delegate { ShowHistory(); };
+            dashHost.Controls.Add(dashboard);
+            dashHost.ClientSizeChanged += delegate { FitDashboard(); };
 
-            summary = new Label();
-            summary.AutoSize = false;
-            summary.Location = new Point(Theme.S(20), Theme.S(12));
-            summary.Size = new Size(Theme.S(520), Theme.S(46));
-            summary.ForeColor = Theme.Text;
-            summary.TextAlign = ContentAlignment.MiddleLeft;
-            summary.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
-            bottom.Controls.Add(summary);
+            BuildListPage();
+            BuildSettingsPage();
+            BuildActionBar();
 
-            applyBtn = new FlatButton("Aplicar", true);
-            applyBtn.Width = Theme.S(150);
-            applyBtn.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            applyBtn.Click += delegate { ApplySelected(); };
-            applyBtn.Enabled = isAdmin;
-            if (!isAdmin) tips.SetToolTip(applyBtn, "Abra o programa como administrador.");
-            bottom.Controls.Add(applyBtn);
-
-            exportBtn = new FlatButton("Exportar .ps1", false);
-            exportBtn.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            exportBtn.Click += delegate { ExportScript(); };
-            tips.SetToolTip(exportBtn, "Salva um script PowerShell com os ajustes marcados, para rodar em outro PC.");
-            bottom.Controls.Add(exportBtn);
-
-            restoreCheck = new CheckToggle("Criar ponto de restauração antes");
-            restoreCheck.Checked = true;
-            restoreCheck.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            bottom.Controls.Add(restoreCheck);
-
-            bottom.Resize += delegate
-            {
-                int top = (bottom.Height - applyBtn.Height) / 2;
-                applyBtn.Location = new Point(bottom.Width - applyBtn.Width - Theme.S(20), top);
-                exportBtn.Location = new Point(applyBtn.Left - exportBtn.Width - Theme.S(10), top);
-                restoreCheck.Location = new Point(exportBtn.Left - restoreCheck.Width - Theme.S(18), (bottom.Height - restoreCheck.Height) / 2);
-                summary.Width = Math.Max(Theme.S(100), restoreCheck.Left - summary.Left - Theme.S(10));
-            };
+            toast = new Toast();
+            main.Controls.Add(toast);
+            main.Controls.Add(dashHost);
+            main.Controls.Add(listPage);
+            main.Controls.Add(settingsPage);
+            main.Controls.Add(actionBar);
+            main.Resize += delegate { PlaceToast(); };
         }
 
-        void BuildContent()
+        void BuildListPage()
         {
-            content = new Panel();
-            content.Dock = DockStyle.Fill;
-            content.BackColor = Theme.Back;
+            listPage = new Panel();
+            listPage.Dock = DockStyle.Fill;
+            listPage.BackColor = Theme.Back;
 
-            Panel top = new Panel();
-            contentTop = top;
-            top.Dock = DockStyle.Top;
-            top.Height = Theme.S(92);
-            top.BackColor = Theme.Back;
+            listHeader = new Panel();
+            listHeader.Dock = DockStyle.Top;
+            listHeader.BackColor = Theme.Back;
 
-            catTitle = new Label();
-            catTitle.Font = Theme.Title;
-            catTitle.ForeColor = Theme.Text;
-            catTitle.AutoSize = true;
-            catTitle.Location = new Point(Theme.S(24), Theme.S(14));
-            top.Controls.Add(catTitle);
+            viewTitle = new Label();
+            viewTitle.Font = Theme.Title;
+            viewTitle.ForeColor = Theme.Text;
+            viewTitle.AutoSize = true;
+            viewTitle.Location = new Point(Theme.S(30), Theme.S(24));
+            listHeader.Controls.Add(viewTitle);
 
-            catSubtitle = new Label();
-            catSubtitle.ForeColor = Theme.Muted;
-            catSubtitle.AutoSize = false;
-            catSubtitle.AutoEllipsis = true;
-            catSubtitle.Location = new Point(Theme.S(26), Theme.S(50));
-            catSubtitle.Size = new Size(Theme.S(500), Theme.S(22));
-            catSubtitle.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
-            top.Controls.Add(catSubtitle);
+            viewSubtitle = new Label();
+            viewSubtitle.ForeColor = Theme.Muted;
+            viewSubtitle.AutoSize = false;
+            viewSubtitle.AutoEllipsis = true;
+            viewSubtitle.Location = new Point(Theme.S(32), Theme.S(62));
+            viewSubtitle.Size = new Size(Theme.S(500), Theme.S(22));
+            listHeader.Controls.Add(viewSubtitle);
 
             searchField = new SearchField();
-            searchField.Width = Theme.S(260);
-            searchField.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            searchField.Width = Theme.S(280);
             searchBox = searchField.Box;
             SetCue(searchBox, "Buscar ajuste (Ctrl+F)");
             Native.Track(searchBox);
-            top.Controls.Add(searchField);
+            listHeader.Controls.Add(searchField);
 
-            checkVisible = new LinkLabel();
-            checkVisible.Text = "Marcar pendentes";
-            checkVisible.AutoSize = true;
-            checkVisible.LinkColor = Theme.Link;
-            checkVisible.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            checkVisible.LinkClicked += delegate { SetVisible(true); };
-            top.Controls.Add(checkVisible);
+            tabsRow = new FlowLayoutPanel();
+            tabsRow.BackColor = Theme.Back;
+            tabsRow.WrapContents = false;
+            tabsRow.Height = Theme.S(40);
+            listHeader.Controls.Add(tabsRow);
 
-            hideToggle = new CheckToggle("Esconder já aplicados");
-            hideToggle.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            hideToggle.CheckedChanged += delegate { hideApplied = hideToggle.Checked; RefreshList(); };
-            tips.SetToolTip(hideToggle, "Mostra só o que ainda falta fazer neste PC.");
-            top.Controls.Add(hideToggle);
+            chipsRow = new FlowLayoutPanel();
+            chipsRow.BackColor = Theme.Back;
+            chipsRow.WrapContents = false;
+            chipsRow.Height = Theme.S(36);
+            chipAll = Chip("Todos", "todos");
+            chipPending = Chip("Pendentes", "pendentes");
+            chipApplied = Chip("Já aplicados", "aplicados");
+            Panel sep = new Panel();
+            sep.Size = new Size(Theme.S(1), Theme.S(22));
+            sep.Margin = new Padding(Theme.S(8), Theme.S(5), Theme.S(12), 0);
+            sep.Paint += delegate(object s, PaintEventArgs e) { e.Graphics.Clear(Theme.Border); };
+            chipsRow.Controls.Add(sep);
+            chipNoUndo = Chip("Sem desfazer", "semdesfazer");
+            chipRisk = Chip("Risco médio ou alto", "risco");
+            listHeader.Controls.Add(chipsRow);
 
-            uncheckVisible = new LinkLabel();
-            uncheckVisible.Text = "Desmarcar";
-            uncheckVisible.AutoSize = true;
-            uncheckVisible.LinkColor = Theme.Link;
-            uncheckVisible.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-            uncheckVisible.LinkClicked += delegate { SetVisible(false); };
-            top.Controls.Add(uncheckVisible);
+            toolHistBtn = new FlatButton("Histórico e desfazer", ButtonKind.Secondary, "history");
+            toolHistBtn.Click += delegate { ShowHistory(); };
+            toolLogsBtn = new FlatButton("Pasta de logs", ButtonKind.Secondary, "folder");
+            toolLogsBtn.Click += delegate { OpenLogs(); };
+            listHeader.Controls.Add(toolHistBtn);
+            listHeader.Controls.Add(toolLogsBtn);
 
-            top.Resize += delegate
-            {
-                searchField.Location = new Point(top.Width - searchField.Width - Theme.S(28), Theme.S(14));
-                uncheckVisible.Location = new Point(top.Width - uncheckVisible.Width - Theme.S(28), Theme.S(54));
-                checkVisible.Location = new Point(uncheckVisible.Left - checkVisible.Width - Theme.S(12), Theme.S(54));
-                hideToggle.Location = new Point(checkVisible.Left - hideToggle.Width - Theme.S(18), Theme.S(50));
-                catSubtitle.Width = Math.Max(Theme.S(100), hideToggle.Left - catSubtitle.Left - Theme.S(16));
-            };
+            listHeader.Resize += delegate { LayoutListHeader(); };
 
             searchTimer = new Timer();
             searchTimer.Interval = 250;
@@ -466,16 +397,150 @@ namespace DebloatWin.App
 
             listPanel = new FlowLayoutPanel();
             listPanel.Dock = DockStyle.Fill;
-            listPanel.FlowDirection = FlowDirection.TopDown;
-            listPanel.WrapContents = false;
+            listPanel.FlowDirection = FlowDirection.LeftToRight;
+            listPanel.WrapContents = true;
             listPanel.AutoScroll = true;
             listPanel.BackColor = Theme.Back;
-            listPanel.Padding = new Padding(Theme.S(24), Theme.S(4), Theme.S(16), Theme.S(16));
+            listPanel.Padding = new Padding(Theme.S(30), Theme.S(4), Theme.S(18), Theme.S(20));
             listPanel.ClientSizeChanged += delegate { ResizeRows(); };
             Native.Track(listPanel);
 
-            content.Controls.Add(listPanel);
-            content.Controls.Add(top);
+            listPage.Controls.Add(listPanel);
+            listPage.Controls.Add(listHeader);
+        }
+
+        FilterChip Chip(string text, string key)
+        {
+            FilterChip c = new FilterChip(text, key);
+            c.Margin = new Padding(0, Theme.S(2), Theme.S(8), 0);
+            c.Click += delegate(object s, EventArgs e)
+            {
+                string k = (string)((FilterChip)s).Key;
+                if (k == "semdesfazer") { onlyNoUndo = !onlyNoUndo; RefreshList(); }
+                else if (k == "risco") { onlyRisk = !onlyRisk; RefreshList(); }
+                else SetStatusFilter(k);
+            };
+            chipsRow.Controls.Add(c);
+            return c;
+        }
+
+        void SetStatusFilter(string k)
+        {
+            statusFilter = k;
+            RefreshList();
+        }
+
+        void LayoutListHeader()
+        {
+            int w = listHeader.Width;
+            searchField.Location = new Point(w - searchField.Width - Theme.S(30), Theme.S(28));
+            int right = searchField.Left - Theme.S(16);
+            viewSubtitle.Width = Math.Max(Theme.S(120), right - viewSubtitle.Left);
+            int y = Theme.S(96);
+            ViewDef v = View(currentView);
+            tabsRow.Visible = v != null && v.Tabs != null && search.Length == 0;
+            if (tabsRow.Visible)
+            {
+                tabsRow.SetBounds(Theme.S(30), y, w - Theme.S(60), Theme.S(40));
+                y += Theme.S(52);
+            }
+            chipsRow.SetBounds(Theme.S(30), y, w - Theme.S(60), Theme.S(36));
+            bool tools = currentView == "ferramentas" && search.Length == 0;
+            toolHistBtn.Visible = toolLogsBtn.Visible = tools;
+            if (tools)
+            {
+                int ty = searchField.Top + (searchField.Height - toolLogsBtn.Height) / 2;
+                toolLogsBtn.Location = new Point(searchField.Left - Theme.S(12) - toolLogsBtn.Width, ty);
+                toolHistBtn.Location = new Point(toolLogsBtn.Left - Theme.S(8) - toolHistBtn.Width, ty);
+                viewSubtitle.Width = Math.Max(Theme.S(120), toolHistBtn.Left - Theme.S(16) - viewSubtitle.Left);
+            }
+            int h = y + Theme.S(36) + Theme.S(14);
+            if (listHeader.Height != h) listHeader.Height = h;
+        }
+
+        void BuildTabs()
+        {
+            tabsRow.SuspendLayout();
+            tabsRow.Controls.Clear();
+            ViewDef v = View(currentView);
+            if (v != null && v.Tabs != null)
+                foreach (Category c in v.Tabs)
+                {
+                    TabButton t = new TabButton(CategoryInfo.Title(c), c);
+                    t.Selected = c == currentTab;
+                    t.Click += delegate(object s, EventArgs e) { currentTab = (Category)((TabButton)s).Key; BuildTabs(); RefreshList(); };
+                    tabsRow.Controls.Add(t);
+                }
+            tabsRow.ResumeLayout();
+        }
+
+        void BuildSettingsPage()
+        {
+            settingsPage = new SettingsView(this);
+            settingsPage.Dock = DockStyle.Fill;
+        }
+
+        void BuildActionBar()
+        {
+            actionBar = new Panel();
+            actionBar.Dock = DockStyle.Bottom;
+            actionBar.Height = Theme.S(70);
+            actionBar.BackColor = Theme.Surface;
+            actionBar.Paint += delegate(object s, PaintEventArgs e)
+            {
+                Graphics g = e.Graphics;
+                using (Pen p = new Pen(Theme.Border)) g.DrawLine(p, 0, 0, actionBar.Width, 0);
+                int right = markBtn.Left - Theme.S(16);
+                TextRenderer.DrawText(g, selectionLine1, Theme.BodyBold, new Rectangle(Theme.S(30), Theme.S(15), right - Theme.S(30), Theme.S(22)),
+                    Theme.Text, TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+                TextRenderer.DrawText(g, selectionLine2, Theme.Small, new Rectangle(Theme.S(30), Theme.S(38), right - Theme.S(30), Theme.S(20)),
+                    Theme.Muted, TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+            };
+
+            applyBtn = new FlatButton("Aplicar", ButtonKind.Primary, "play");
+            applyBtn.Click += delegate { ApplySelected(); };
+            if (!isAdmin) tips.SetToolTip(applyBtn, "Abra o programa como administrador.");
+            exportBtn = new FlatButton("Exportar .ps1", ButtonKind.Secondary, "export");
+            exportBtn.Click += delegate { ExportScript(); };
+            tips.SetToolTip(exportBtn, "Salva um script PowerShell com os itens marcados, para rodar em outro PC.");
+            resultsBtn = new FlatButton("Ver resultados", ButtonKind.Secondary, "history");
+            resultsBtn.Click += delegate { ShowHistory(); };
+            tips.SetToolTip(resultsBtn, "Histórico das sessões aplicadas, logs e desfazer.");
+            clearBtn = new FlatButton("Desmarcar", ButtonKind.Ghost, null);
+            clearBtn.Click += delegate { SetVisible(false); };
+            markBtn = new FlatButton("Marcar pendentes", ButtonKind.Ghost, null);
+            markBtn.Click += delegate { SetVisible(true); };
+            tips.SetToolTip(markBtn, "Marca o que ainda falta nesta página.");
+            foreach (Control c in new Control[] { applyBtn, exportBtn, resultsBtn, clearBtn, markBtn }) actionBar.Controls.Add(c);
+            actionBar.Resize += delegate { LayoutActionBar(); };
+        }
+
+        void LayoutActionBar()
+        {
+            int top = (actionBar.Height - applyBtn.Height) / 2;
+            int x = actionBar.Width - Theme.S(30);
+            foreach (FlatButton b in new FlatButton[] { applyBtn, exportBtn, resultsBtn, clearBtn, markBtn })
+            {
+                x -= b.Width;
+                b.Location = new Point(x, top);
+                x -= Theme.S(8);
+            }
+            actionBar.Invalidate();
+            PlaceToast();
+        }
+
+        void PlaceToast()
+        {
+            if (toast == null) return;
+            int bottom = actionBar.Visible ? actionBar.Top : main.Height;
+            toast.Location = new Point(main.Width - toast.Width - Theme.S(24), bottom - toast.Height - Theme.S(18));
+        }
+
+        public void ShowToast(string kind, string title, string message)
+        {
+            toast.Show(kind, title, message, 4500);
+            PlaceToast();
+            toast.BringToFront();
         }
 
         static void SetCue(TextBox box, string cue)
@@ -488,18 +553,52 @@ namespace DebloatWin.App
             };
         }
 
-        // ------------------------------------------------------------------
-        void SelectCategory(object key)
+        // ==================================================================
+        // Navegação
+        void SelectView(string key)
         {
-            currentCategory = key;
-            foreach (KeyValuePair<object, NavItem> kv in nav) kv.Value.Selected = kv.Key.Equals(key);
-            if (searchBox.Text.Length > 0) { searchBox.Text = ""; search = ""; }
-            RefreshList();
+            if (View(key) == null) key = "dashboard";
+            currentView = key;
+            foreach (KeyValuePair<string, NavItem> kv in nav) kv.Value.Selected = kv.Key == key;
+            bool isList = key != "dashboard" && key != "configuracoes";
+            SuspendLayout();
+            dashHost.Visible = key == "dashboard";
+            settingsPage.Visible = key == "configuracoes";
+            listPage.Visible = isList;
+            actionBar.Visible = isList;
+            if (isList)
+            {
+                if (searchBox.Text.Length > 0) { searchBox.Text = ""; search = ""; }
+                statusFilter = "todos"; onlyNoUndo = false; onlyRisk = false;
+                BuildTabs();
+                RefreshList();
+            }
+            else if (key == "dashboard") RefreshDashboard();
+            else ((SettingsView)settingsPage).Reload();
+            ResumeLayout(true);
+            PlaceToast();
         }
 
-        bool Matches(TweakRow r)
+        /// <summary>Compatível com as prévias: aceita uma Category ou a chave de uma página.</summary>
+        void SelectCategory(object key)
         {
-            if (hideApplied && r.AlreadyApplied) return false;
+            if (key is Category)
+            {
+                Category c = (Category)key;
+                switch (c)
+                {
+                    case Category.Apps: SelectView("debloat"); return;
+                    case Category.Programas: SelectView("programas"); return;
+                    case Category.Ferramentas: SelectView("limpeza"); return;
+                    case Category.Finalizar: SelectView("ferramentas"); return;
+                    default: currentTab = c; SelectView("otimizacoes"); return;
+                }
+            }
+            SelectView(key as string ?? "dashboard");
+        }
+
+        bool InView(TweakRow r)
+        {
             Tweak t = r.Tweak;
             if (search.Length > 0)
             {
@@ -507,42 +606,69 @@ namespace DebloatWin.App
                 return t.Title.ToLowerInvariant().Contains(q) || t.Description.ToLowerInvariant().Contains(q) ||
                        t.Id.ToLowerInvariant().Contains(q) || (t.Warning != null && t.Warning.ToLowerInvariant().Contains(q));
             }
-            return currentCategory.Equals("todos") || currentCategory.Equals(t.Category);
+            ViewDef v = View(currentView);
+            return v != null && v.Filter != null && v.Filter(t);
+        }
+
+        bool PassesFilters(TweakRow r)
+        {
+            if (statusFilter == "pendentes" && (!r.Applicable || r.AlreadyApplied)) return false;
+            if (statusFilter == "aplicados" && !r.AlreadyApplied) return false;
+            if (onlyNoUndo && r.Tweak.IsReversible) return false;
+            if (onlyRisk && r.Tweak.Risk == Risk.Baixo) return false;
+            return true;
+        }
+
+        void UpdateChipCounts()
+        {
+            if (chipAll == null) return;
+            int total = 0, pending = 0, applied = 0;
+            foreach (TweakRow r in rows)
+            {
+                if (!InView(r)) continue;
+                total++;
+                if (r.Applicable && !r.AlreadyApplied) pending++;
+                if (r.AlreadyApplied) applied++;
+            }
+            chipAll.SetText("Todos · " + total);
+            chipPending.SetText("Pendentes · " + pending);
+            chipApplied.SetText("Já aplicados · " + applied);
+            chipAll.Selected = statusFilter == "todos";
+            chipPending.Selected = statusFilter == "pendentes";
+            chipApplied.Selected = statusFilter == "aplicados";
+            chipNoUndo.Selected = onlyNoUndo;
+            chipRisk.Selected = onlyRisk;
         }
 
         void RefreshList()
         {
+            if (currentView == "dashboard" || currentView == "configuracoes") { UpdateChipCounts(); return; }
+            ViewDef v = View(currentView);
             if (search.Length > 0)
             {
-                catTitle.Text = "Busca";
-                catSubtitle.Text = "Resultados para \"" + search + "\" em todas as categorias.";
-            }
-            else if (currentCategory.Equals("todos"))
-            {
-                catTitle.Text = "Todos os ajustes";
-                catSubtitle.Text = all.Count + " ajustes. Marque um a um ou use o preset Padrão no menu ao lado.";
+                viewTitle.Text = "Busca";
+                viewSubtitle.Text = "Resultados para \"" + search + "\" em todas as páginas.";
             }
             else
             {
-                Category c = (Category)currentCategory;
-                catTitle.Text = CategoryInfo.Title(c);
-                catSubtitle.Text = CategoryInfo.Subtitle(c);
+                viewTitle.Text = v.Title;
+                viewSubtitle.Text = v.Tabs != null ? CategoryInfo.Subtitle(currentTab) : v.Subtitle;
             }
+            UpdateChipCounts();
+            LayoutListHeader();
 
             listPanel.SuspendLayout();
             listPanel.Controls.Clear();
-            bool grouped = search.Length > 0 || currentCategory.Equals("todos");
+            bool grouped = search.Length > 0;
             string lastHeader = null;
             int shown = 0;
             List<Control> items = new List<Control>();
             foreach (TweakRow r in rows)
             {
-                if (!Matches(r)) continue;
-                // Programas têm subgrupos (Navegadores, Comunicação…), mostrados também dentro da própria categoria
+                if (!InView(r) || !PassesFilters(r)) continue;
                 string header = null;
                 if (grouped) header = CategoryInfo.Title(r.Tweak.Category);
-                if (r.Tweak.Group != null)
-                    header = grouped ? header + " — " + r.Tweak.Group : r.Tweak.Group;
+                if (r.Tweak.Group != null) header = grouped ? header + " · " + r.Tweak.Group : r.Tweak.Group;
                 if (header != null && header != lastHeader)
                 {
                     items.Add(new GroupHeader(header));
@@ -554,7 +680,7 @@ namespace DebloatWin.App
             if (shown == 0)
             {
                 Label none = new Label();
-                none.Text = "Nenhum ajuste encontrado.";
+                none.Text = statusFilter == "pendentes" ? "Nada pendente aqui: tudo já está aplicado neste PC." : "Nenhum item encontrado.";
                 none.ForeColor = Theme.Muted;
                 none.AutoSize = true;
                 none.Margin = new Padding(0, Theme.S(16), 0, 0);
@@ -568,17 +694,44 @@ namespace DebloatWin.App
 
         void ResizeRows()
         {
-            // reserva sempre a largura da barra de rolagem vertical, para não aparecer barra horizontal
-            int w = listPanel.Width - listPanel.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth - Theme.S(2);
-            if (w < Theme.S(200)) return;
+            // reserva a largura da barra de rolagem vertical, para não aparecer barra horizontal
+            int avail = listPanel.ClientSize.Width - listPanel.Padding.Horizontal - SystemInformation.VerticalScrollBarWidth;
+            if (avail < Theme.S(200)) return;
+            int gap = Theme.S(12);
+            int cols = avail >= Theme.S(820) ? 2 : 1;
+            int cw = (avail - gap * (cols - 1)) / cols;
             listPanel.SuspendLayout();
+            List<TweakRow> line = new List<TweakRow>();
             foreach (Control c in listPanel.Controls)
             {
                 TweakRow r = c as TweakRow;
-                if (r != null) { if (r.Width != w) r.LayoutForWidth(w); }
-                else if (c is GroupHeader) c.Width = w;
+                if (r != null)
+                {
+                    line.Add(r);
+                    if (line.Count == cols) { FinishLine(line, cw, gap); line.Clear(); }
+                }
+                else
+                {
+                    if (line.Count > 0) { FinishLine(line, cw, gap); line.Clear(); }
+                    c.Width = avail;
+                    listPanel.SetFlowBreak(c, true);
+                }
             }
+            if (line.Count > 0) FinishLine(line, cw, gap);
             listPanel.ResumeLayout();
+        }
+
+        void FinishLine(List<TweakRow> line, int cw, int gap)
+        {
+            int h = 0;
+            foreach (TweakRow r in line) h = Math.Max(h, r.MeasureHeight(cw));
+            for (int i = 0; i < line.Count; i++)
+            {
+                TweakRow r = line[i];
+                r.LayoutForWidth(cw, h);
+                r.Margin = new Padding(0, 0, i == line.Count - 1 ? 0 : gap, gap);
+                listPanel.SetFlowBreak(r, i == line.Count - 1);
+            }
         }
 
         void SetVisible(bool value)
@@ -600,19 +753,121 @@ namespace DebloatWin.App
                 r.Checked = inPreset && !r.AlreadyApplied;
                 if (r.Checked) n++;
             }
-            Flash(done > 0
-                ? string.Format("Padrão: {0} pendentes marcados ({1} já estavam aplicados).", n, done)
-                : "Padrão marcado. Revise e clique em Aplicar.");
+            ShowToast("info", "Padrão marcado", done > 0
+                ? string.Format("{0} pendentes marcados; {1} já estavam aplicados.", n, done)
+                : n + " itens marcados.");
         }
 
-        string flashText;
-        void Flash(string text)
+        // ==================================================================
+        // Dashboard
+        void RefreshDashboard()
         {
-            flashText = text;
-            UpdateSummary();
-            flashText = null;
+            if (dashboard == null) return;
+            DashData d = new DashData();
+            d.Machine = Environment.MachineName;
+            d.Edition = EditionName();
+            d.Version = (win.DisplayVersion + " · " + win.Build).Trim(' ', '·');
+            foreach (TweakRow r in rows)
+            {
+                if (!r.Tweak.Padrao) continue;
+                if (!r.Applicable) { d.OtherWindows++; continue; }
+                if (r.AlreadyApplied) d.Applied++; else d.Pending++;
+                if (r.Status != null && r.Status.State == TweakState.Checking) d.Checking = true;
+                if (r.Tweak.Id == "fim.driverssdio")
+                    d.DriverState = r.Status == null ? -1 : r.Status.State == TweakState.Applied ? 1 : r.Status.State == TweakState.NotApplied ? 0 : -1;
+            }
+            AddArea(d, "Debloat", "debloat", delegate(Tweak t) { return t.Category == Category.Apps; });
+            foreach (Category c in new Category[] { Category.Privacidade, Category.Telemetria, Category.Atualizacoes, Category.Desempenho, Category.Jogos, Category.Interface })
+            {
+                Category cc = c;
+                AddArea(d, CategoryInfo.Title(c), "otimizacoes:" + c, delegate(Tweak t) { return t.Category == cc; });
+            }
+            AddArea(d, "Limpeza", "limpeza", delegate(Tweak t) { return t.Category == Category.Ferramentas; });
+            AddArea(d, "Programas", "programas", delegate(Tweak t) { return t.Category == Category.Programas; });
+            AddArea(d, "Drivers e atualizações", "ferramentas", delegate(Tweak t) { return t.Category == Category.Finalizar; });
+            try
+            {
+                foreach (SessionBackup s in engine.ListSessions())
+                {
+                    if (d.Activities.Count >= 4) break;
+                    DashActivity a = new DashActivity();
+                    int n = s.Tweaks.Count + s.Irreversible.Count;
+                    if (n == 1) a.Title = s.Tweaks.Count == 1 ? s.Tweaks[0].TweakTitle : s.Irreversible[0];
+                    else a.Title = n + " ajustes aplicados";
+                    a.When = s.Date != null && s.Date.Length > 16 ? s.Date.Substring(0, 16) : s.Date;
+                    a.Kind = s.Undone ? 1 : 0;
+                    a.Pill = s.Undone ? "Desfeita" : "Concluída";
+                    d.Activities.Add(a);
+                }
+            }
+            catch { }
+            d.Stats = lastStats;
+            dashboard.SetData(d);
+            FitDashboard();
         }
 
+        /// <summary>Largura do Dashboard sem barra horizontal: desconta a barra vertical quando ela existe.</summary>
+        void FitDashboard()
+        {
+            int w = dashHost.Width - (dashboard.Height > dashHost.Height ? SystemInformation.VerticalScrollBarWidth : 0);
+            if (w > 0 && dashboard.Width != w) dashboard.Width = w;
+        }
+
+        void AddArea(DashData d, string name, string key, Predicate<Tweak> f)
+        {
+            DashArea a = new DashArea();
+            a.Name = name; a.Key = key;
+            foreach (TweakRow r in rows)
+            {
+                if (!r.Applicable || !f(r.Tweak)) continue;
+                a.Total++;
+                if (r.AlreadyApplied) a.Applied++;
+            }
+            if (a.Total > 0) d.Areas.Add(a);
+        }
+
+        // ==================================================================
+        // Tema
+        internal void ApplyTheme()
+        {
+            SuspendLayout();
+            BackColor = Theme.Back;
+            ForeColor = Theme.Text;
+            sidebar.BackColor = Theme.Surface;
+            foreach (Control c in new Control[] { main, dashHost, dashboard, listPage, listHeader, tabsRow, chipsRow, listPanel, settingsPage })
+                c.BackColor = Theme.Back;
+            actionBar.BackColor = Theme.Surface;
+            viewTitle.ForeColor = Theme.Text;
+            viewSubtitle.ForeColor = Theme.Muted;
+            searchField.ApplyColors();
+            ((SettingsView)settingsPage).ApplyColors();
+            Native.TitleBar(this, Theme.Dark);
+            Native.Control(listPanel, Theme.Dark);
+            Native.Control(dashHost, Theme.Dark);
+            Native.Control(searchBox, Theme.Dark);
+            ResumeLayout(true);
+            InvalidateAll(this);
+            Refresh();
+        }
+
+        static void InvalidateAll(Control c)
+        {
+            c.Invalidate();
+            foreach (Control k in c.Controls) InvalidateAll(k);
+        }
+
+        internal void SetTheme(ThemeMode m)
+        {
+            Theme.SetMode(m, true);
+            ApplyTheme();
+        }
+
+        void CycleTheme()
+        {
+            SetTheme(Theme.Mode == ThemeMode.Escuro ? ThemeMode.Claro : Theme.Mode == ThemeMode.Claro ? ThemeMode.Sistema : ThemeMode.Escuro);
+        }
+
+        // ==================================================================
         List<Tweak> Selected()
         {
             List<Tweak> l = new List<Tweak>();
@@ -620,94 +875,100 @@ namespace DebloatWin.App
             return l;
         }
 
+        bool RestorePointPref { get { return Theme.GetPref("PontoRestauracao", true); } }
+
         void UpdateSummary()
         {
+            if (applyBtn == null) return;
             List<Tweak> sel = Selected();
-            int irreversible = 0, high = 0, restart = 0, alreadyDone = 0;
-            foreach (TweakRow r in rows) if (r.Checked && r.AlreadyApplied) alreadyDone++;
+            int irreversible = 0, high = 0, restart = 0;
             foreach (Tweak t in sel)
             {
                 if (!t.IsReversible) irreversible++;
                 if (t.Risk == Risk.Alto) high++;
                 if (t.NeedsRestart) restart++;
             }
-            StringBuilder sb = new StringBuilder();
-            if (flashText != null) sb.AppendLine(flashText);
-            if (sel.Count == 0) sb.Append("Nenhum ajuste marcado.");
+            if (sel.Count == 0)
+            {
+                selectionLine1 = "Nenhum item marcado";
+                selectionLine2 = "Marque itens ou use \"Marcar pendentes\".";
+            }
             else
             {
-                sb.Append(sel.Count == 1 ? "1 ajuste marcado" : sel.Count + " ajustes marcados");
-                if (irreversible > 0) sb.Append("  •  " + irreversible + " sem desfazer");
-                if (alreadyDone > 0) sb.Append("  •  " + alreadyDone + " já aplicado" + (alreadyDone > 1 ? "s" : ""));
-                if (high > 0) sb.Append("  •  " + high + " de risco alto");
-                if (restart > 0) sb.Append("  •  pede reinício");
+                selectionLine1 = sel.Count == 1 ? "1 item marcado" : sel.Count + " itens marcados";
+                List<string> parts = new List<string>();
+                if (irreversible > 0) parts.Add(irreversible + " sem desfazer");
+                if (high > 0) parts.Add(high + " de risco alto");
+                if (restart > 0) parts.Add("pede reinício");
+                parts.Add(RestorePointPref ? "ponto de restauração antes" : "sem ponto de restauração");
+                selectionLine2 = string.Join(" · ", parts.ToArray());
             }
-            summary.Text = sb.ToString();
+            applyBtn.SetText(sel.Count > 0 ? "Aplicar " + sel.Count + (sel.Count == 1 ? " item" : " itens") : "Aplicar");
             applyBtn.Enabled = isAdmin && sel.Count > 0;
             exportBtn.Enabled = sel.Count > 0;
+            clearBtn.Enabled = sel.Count > 0;
+            LayoutActionBar();
 
-            // contadores do menu lateral
-            Dictionary<object, int[]> counts = new Dictionary<object, int[]>();
-            counts["todos"] = new int[2];
-            foreach (Category c in Enum.GetValues(typeof(Category))) counts[c] = new int[2];
-            foreach (TweakRow r in rows)
+            foreach (ViewDef v in views)
             {
-                counts["todos"][1]++;
-                counts[r.Tweak.Category][1]++;
-                if (r.Checked) { counts["todos"][0]++; counts[r.Tweak.Category][0]++; }
+                NavItem item;
+                if (!nav.TryGetValue(v.Key, out item)) continue;
+                if (v.Filter == null) { item.Count = ""; item.Invalidate(); continue; }
+                int total = 0, marked = 0;
+                foreach (TweakRow r in rows)
+                {
+                    bool inView = v.Tabs != null ? Array.IndexOf(v.Tabs, r.Tweak.Category) >= 0 : v.Filter(r.Tweak);
+                    if (!inView || !r.Applicable) continue;
+                    total++;
+                    if (r.Checked) marked++;
+                }
+                item.Count = marked > 0 ? marked + "/" + total : total.ToString();
+                item.Invalidate();
             }
-            foreach (KeyValuePair<object, NavItem> kv in nav)
-            {
-                int[] v = counts[kv.Key];
-                kv.Value.Count = v[0] > 0 ? v[0] + "/" + v[1] : v[1].ToString();
-                kv.Value.Invalidate();
-            }
+            sidebar.Invalidate();
         }
 
-        // ------------------------------------------------------------------
+        // ==================================================================
         void ApplySelected()
         {
             List<Tweak> sel = Selected();
             if (sel.Count == 0) return;
+            if (!isAdmin)
+            {
+                ShowToast("err", "Sem administrador", "Abra o Debloat Win como administrador para aplicar.");
+                return;
+            }
 
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine(string.Format("Aplicar {0} ajuste(s) neste computador?", sel.Count));
             List<string> irr = new List<string>(), high = new List<string>();
             foreach (Tweak t in sel)
             {
                 if (!t.IsReversible) irr.Add(t.Title);
                 if (t.Risk == Risk.Alto) high.Add(t.Title);
             }
+            bool wantRestore = RestorePointPref;
+            StringBuilder body = new StringBuilder();
+            if (irr.Count > 0) body.Append(irr.Count + " não têm desfazer (apps removidos, limpezas e instalações). ");
+            body.Append(wantRestore ? "Um ponto de restauração será criado antes." : "ATENÇÃO: nenhum ponto de restauração será criado (veja Configurações).");
+            if (sel.Exists(delegate(Tweak t) { return t.Category == Category.Finalizar; }))
+                body.Append(" Drivers e Windows Update rodam por último e podem levar até 40 minutos.");
+            StringBuilder det = new StringBuilder();
             if (high.Count > 0)
             {
-                sb.AppendLine();
-                sb.AppendLine("Risco alto:");
-                foreach (string s in high) sb.AppendLine("  • " + s);
+                det.AppendLine("Risco alto:");
+                foreach (string s in high) det.AppendLine("  • " + s);
+                det.AppendLine();
             }
             if (irr.Count > 0)
             {
-                sb.AppendLine();
-                sb.AppendLine("Sem desfazer pelo programa (só pelo ponto de restauração):");
-                int n = 0;
-                foreach (string s in irr) { if (n++ < 12) sb.AppendLine("  • " + s); }
-                if (irr.Count > 12) sb.AppendLine("  … e mais " + (irr.Count - 12));
+                det.AppendLine("Sem desfazer pelo programa (só pelo ponto de restauração):");
+                foreach (string s in irr) det.AppendLine("  • " + s);
             }
-            int already = 0;
-            foreach (TweakRow r in rows) if (r.Checked && r.AlreadyApplied) already++;
-            if (already > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine(already + " dos marcados já estão aplicados neste PC: serão só conferidos, sem mudar nada.");
-            }
-            sb.AppendLine();
-            sb.AppendLine(restoreCheck.Checked ? "Um ponto de restauração será criado antes." : "ATENÇÃO: nenhum ponto de restauração será criado.");
-            if (MessageBox.Show(this, sb.ToString(), AppInfo.Name, MessageBoxButtons.YesNo,
-                    high.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Question) != DialogResult.Yes) return;
+            if (!ConfirmDialog.Ask(this, string.Format("Aplicar {0} {1} neste PC?", sel.Count, sel.Count == 1 ? "item" : "itens"),
+                    body.ToString(), det.ToString(), "Aplicar", high.Count > 0 ? "alert" : "shield", high.Count > 0)) return;
 
-            bool wantRestore = restoreCheck.Checked;
             SessionResult result = null;
             ProgressForm pf = null;
-            pf = new ProgressForm("Aplicando ajustes", delegate(ProgressHandler progress, Action<string> log)
+            pf = new ProgressForm("Aplicando Padrão", delegate(ProgressHandler progress, Action<string> log)
             {
                 string rpNote = null;
                 if (wantRestore)
@@ -716,14 +977,15 @@ namespace DebloatWin.App
                     log("Criando ponto de restauração…");
                     string msg;
                     bool ok = engine.CreateRestorePoint(out msg);
-                    log((ok ? "[OK] " : "[FALHA] ") + msg);
+                    log((ok ? "[OK]     " : "[FALHA]  ") + "Ponto de restauração: " + msg);
+                    pf.ReportResult("Ponto de restauração", ok ? ActionOutcome.Ok : ActionOutcome.Failed, msg);
                     rpNote = (ok ? "[OK]    " : "[FALHA] ") + "Ponto de restauração: " + msg;
                     if (!ok)
                     {
                         bool go = (bool)pf.Invoke((Func<bool>)delegate
                         {
-                            return MessageBox.Show(pf, "Não foi possível criar o ponto de restauração:\n\n" + msg +
-                                "\n\nContinuar mesmo assim?", AppInfo.Name, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes;
+                            return ConfirmDialog.Ask(pf, "Continuar sem ponto de restauração?", "Não foi possível criar o ponto de restauração: " + msg,
+                                null, "Continuar", "alert", true);
                         });
                         if (!go) return "Cancelado. Nada foi alterado.";
                     }
@@ -733,8 +995,15 @@ namespace DebloatWin.App
                 {
                     string head = tr.Outcome == ActionOutcome.Ok ? "[OK]     " : tr.Outcome == ActionOutcome.Skipped ? "[IGNOR.] " : "[FALHA]  ";
                     log(head + tr.Tweak.Title);
+                    string detail = null;
                     if (tr.Outcome != ActionOutcome.Ok)
-                        foreach (string m in tr.Messages) if (!m.StartsWith("ok:")) log("           " + m.Replace("\r", "").TrimEnd('\n').Replace("\n", "\n             "));
+                        foreach (string m in tr.Messages)
+                            if (!m.StartsWith("ok:"))
+                            {
+                                log("           " + m.Replace("\r", "").TrimEnd('\n').Replace("\n", "\n             "));
+                                if (detail == null) detail = m;
+                            }
+                    pf.ReportResult(tr.Tweak.Title, tr.Outcome, detail);
                 };
                 result = engine.Apply(sel, false, win.ToString(), progress);
                 engine.TweakDone = null;
@@ -744,9 +1013,33 @@ namespace DebloatWin.App
                 return string.Format("Concluído: {0} aplicados, {1} ignorados, {2} com falha. Reinicie o PC para tudo valer.",
                     result.Count(ActionOutcome.Ok), result.Count(ActionOutcome.Skipped), result.Count(ActionOutcome.Failed));
             });
+            pf.TotalItems = sel.Count;
             pf.ShowDialog(this);
             pf.Dispose();
+            if (result != null)
+            {
+                int fails = result.Count(ActionOutcome.Failed);
+                ShowToast(fails > 0 ? "err" : "ok", fails > 0 ? "Concluído com falhas" : "Concluído",
+                    string.Format("{0} aplicados, {1} ignorados, {2} com falha. Reinicie o PC para tudo valer.",
+                        result.Count(ActionOutcome.Ok), result.Count(ActionOutcome.Skipped), fails));
+            }
             Redetect();
+        }
+
+        internal void ShowHistory()
+        {
+            using (HistoryForm h = new HistoryForm(engine)) h.ShowDialog(this);
+            Redetect();
+        }
+
+        internal void OpenLogs()
+        {
+            try
+            {
+                Directory.CreateDirectory(engine.LogsFolder);
+                Process.Start("explorer.exe", "\"" + engine.LogsFolder + "\"");
+            }
+            catch (Exception ex) { ShowToast("err", "Não abriu a pasta", ex.Message); }
         }
 
         void ExportScript()
@@ -758,18 +1051,66 @@ namespace DebloatWin.App
                 d.Filter = "Script PowerShell (*.ps1)|*.ps1";
                 d.FileName = "debloat-win-" + DateTime.Now.ToString("yyyyMMdd-HHmm") + ".ps1";
                 if (d.ShowDialog(this) != DialogResult.OK) return;
-                File.WriteAllText(d.FileName, ScriptExporter.Build(sel, restoreCheck.Checked), new UTF8Encoding(true));
-                MessageBox.Show(this, "Script salvo com " + sel.Count + " ajuste(s).\n\nNo outro PC, abra o PowerShell como administrador e rode:\n" +
-                    "powershell -ExecutionPolicy Bypass -File \"" + Path.GetFileName(d.FileName) + "\"",
-                    AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                File.WriteAllText(d.FileName, ScriptExporter.Build(sel, RestorePointPref), new UTF8Encoding(true));
+                ShowToast("ok", "Script salvo", sel.Count + " item(ns). No outro PC, rode como administrador: powershell -ExecutionPolicy Bypass -File \"" +
+                    Path.GetFileName(d.FileName) + "\"");
             }
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if (keyData == (Keys.Control | Keys.F)) { searchBox.Focus(); searchBox.SelectAll(); return true; }
+            if (keyData == (Keys.Control | Keys.F))
+            {
+                if (!listPage.Visible) SelectView("debloat");
+                searchBox.Focus(); searchBox.SelectAll();
+                return true;
+            }
             if (keyData == Keys.Escape && searchBox.Focused && searchBox.Text.Length > 0) { searchBox.Text = ""; return true; }
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+    }
+
+    /// <summary>Aba com sublinhado azul (usada em Otimizações).</summary>
+    public class TabButton : Control
+    {
+        public object Key;
+        bool selected, hover;
+
+        public TabButton(string text, object key)
+        {
+            Text = text; Key = key;
+            Font = Theme.BodyBold;
+            Cursor = Cursors.Hand;
+            TabStop = true;
+            AccessibleRole = AccessibleRole.PageTab;
+            AccessibleName = text;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.Selectable, true);
+            Size = new Size(TextRenderer.MeasureText(text, Font).Width + Theme.S(28), Theme.S(40));
+            Margin = new Padding(0);
+        }
+
+        public bool Selected { get { return selected; } set { selected = value; Invalidate(); } }
+        protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Space || e.KeyCode == Keys.Enter) { OnClick(EventArgs.Empty); e.Handled = true; }
+            base.OnKeyDown(e);
+        }
+        protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+        protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.Clear(BackColor);
+            using (Pen p = new Pen(Theme.Border)) g.DrawLine(p, 0, Height - 1, Width, Height - 1);
+            Color fg = selected ? Theme.Text : hover ? Theme.TagFg : Theme.Muted;
+            TextRenderer.DrawText(g, Text, Font, new Rectangle(0, 0, Width, Height - Theme.S(3)), fg,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+            if (selected)
+                using (SolidBrush b = new SolidBrush(Theme.Bright)) g.FillRectangle(b, Theme.S(8), Height - Theme.S(3), Width - Theme.S(16), Theme.S(3));
+            if (Focused && ShowFocusCues) Theme.DrawFocus(g, new Rectangle(Theme.S(2), Theme.S(4), Width - Theme.S(5), Height - Theme.S(10)), Theme.S(6));
         }
     }
 

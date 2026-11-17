@@ -1,5 +1,5 @@
 // Cores, fontes, escala de DPI e modo escuro nativo do Windows.
-// Visual neutro: troque as cores das paletas abaixo para mudar o tema.
+// Design "Dark premium" (17/11/2026): escuro é o tema principal; o claro segue a mesma estrutura.
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -27,10 +27,11 @@ namespace DebloatWin.App
 
     public static class Theme
     {
-        // ---- paleta atual (trocada por Apply) ----
-        public static Color Back, Surface, Border, Text, Muted, Accent, AccentHover, AccentSoft, Selected,
-            RowHover, Disabled, Input, Link,
-            RiskLowFg, RiskLowBg, RiskMidFg, RiskMidBg, RiskHighFg, RiskHighBg, TagFg, TagBg,
+        // ---- paleta atual (trocada por ApplyPalette) ----
+        public static Color Back, Surface, Card, Raised, Border, Text, Muted, Accent, AccentHover, AccentPressed, Bright,
+            AccentSoft, Selected, SelectedBorder, RowHover, Disabled, Input, Link, LogBack,
+            Success, Warning, Danger,
+            RiskLowFg, RiskLowBg, RiskMidFg, RiskMidBg, RiskHighFg, RiskHighBg, TagFg, TagBg, InfoFg, InfoBg,
             AppliedBg, AppliedHover, AppliedBorder, PartialBg, PartialHover, PartialBorder;
 
         public static bool Dark { get; private set; }
@@ -38,59 +39,78 @@ namespace DebloatWin.App
 
         static Theme()
         {
-            ApplyPalette(false);
+            ApplyPalette(true);
+        }
+
+        static Color Hex(int rgb) { return Color.FromArgb((rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255); }
+
+        /// <summary>Cor <paramref name="fg"/> com opacidade <paramref name="a"/> sobre o fundo <paramref name="bg"/>.</summary>
+        public static Color Blend(Color fg, float a, Color bg)
+        {
+            return Color.FromArgb(
+                (int)Math.Round(fg.R * a + bg.R * (1 - a)),
+                (int)Math.Round(fg.G * a + bg.G * (1 - a)),
+                (int)Math.Round(fg.B * a + bg.B * (1 - a)));
         }
 
         static void ApplyPalette(bool dark)
         {
             Dark = dark;
-            if (!dark)
+            Accent = Hex(0x2563EB); AccentHover = Hex(0x1D4ED8); AccentPressed = Hex(0x1E40AF); Bright = Hex(0x3B82F6);
+            Success = Hex(0x22C55E); Warning = Hex(0xF59E0B); Danger = Hex(0xEF4444);
+            if (dark)
             {
-                Back = Color.FromArgb(245, 246, 248);
-                Surface = Color.White;
-                Border = Color.FromArgb(222, 225, 230);
-                Text = Color.FromArgb(31, 35, 40);
-                Muted = Color.FromArgb(101, 109, 118);
-                Accent = Color.FromArgb(47, 111, 237);
-                AccentHover = Color.FromArgb(31, 92, 210);
-                AccentSoft = Color.FromArgb(232, 240, 254);
-                Selected = Color.FromArgb(240, 245, 255);
-                RowHover = Color.FromArgb(250, 251, 252);
-                Disabled = Color.FromArgb(170, 175, 182);
-                Input = Color.White;
-                Link = Color.FromArgb(47, 111, 237);
-                RiskLowFg = Color.FromArgb(26, 127, 55); RiskLowBg = Color.FromArgb(218, 251, 225);
-                RiskMidFg = Color.FromArgb(154, 103, 0); RiskMidBg = Color.FromArgb(255, 248, 197);
-                RiskHighFg = Color.FromArgb(207, 34, 46); RiskHighBg = Color.FromArgb(255, 235, 233);
-                TagFg = Color.FromArgb(87, 96, 106); TagBg = Color.FromArgb(234, 238, 242);
-                AppliedBg = Color.FromArgb(244, 251, 246); AppliedHover = Color.FromArgb(236, 248, 240); AppliedBorder = Color.FromArgb(178, 222, 190);
-                PartialBg = Color.FromArgb(255, 252, 238); PartialHover = Color.FromArgb(255, 248, 224); PartialBorder = Color.FromArgb(232, 214, 140);
+                Back = Hex(0x0B0F19);
+                Surface = Hex(0x111827);
+                Card = Hex(0x161F2E);
+                Raised = Hex(0x1B2638);
+                Border = Hex(0x263244);
+                Text = Hex(0xF8FAFC);
+                Muted = Hex(0x94A3B8);
+                AccentSoft = Blend(Bright, 0.14f, Surface);
+                Selected = Hex(0x172238);
+                SelectedBorder = Blend(Bright, 0.55f, Card);
+                RowHover = Hex(0x1A2436);
+                Disabled = Hex(0x5B6B82);
+                Input = Card;
+                Link = Hex(0x60A5FA);
+                LogBack = Hex(0x0E1422);
+                RiskLowFg = Hex(0x86EFAC); RiskLowBg = Blend(Success, 0.12f, Card);
+                RiskMidFg = Hex(0xFCD34D); RiskMidBg = Blend(Warning, 0.14f, Card);
+                RiskHighFg = Hex(0xFCA5A5); RiskHighBg = Blend(Danger, 0.14f, Card);
+                TagFg = Hex(0xCBD5E1); TagBg = Blend(Muted, 0.12f, Card);
+                InfoFg = Hex(0x93C5FD); InfoBg = Blend(Bright, 0.14f, Card);
+                AppliedBg = Hex(0x14211F); AppliedHover = Hex(0x172822); AppliedBorder = Blend(Success, 0.28f, Card);
+                PartialBg = Blend(Warning, 0.05f, Card); PartialHover = Blend(Warning, 0.08f, Card); PartialBorder = Blend(Warning, 0.30f, Card);
             }
             else
             {
-                Back = Color.FromArgb(24, 26, 30);
-                Surface = Color.FromArgb(33, 36, 41);
-                Border = Color.FromArgb(52, 57, 64);
-                Text = Color.FromArgb(230, 232, 235);
-                Muted = Color.FromArgb(154, 163, 174);
-                Accent = Color.FromArgb(76, 141, 255);
-                AccentHover = Color.FromArgb(106, 161, 255);
-                AccentSoft = Color.FromArgb(35, 50, 77);
-                Selected = Color.FromArgb(31, 42, 61);
-                RowHover = Color.FromArgb(39, 43, 49);
-                Disabled = Color.FromArgb(92, 99, 108);
-                Input = Color.FromArgb(28, 31, 35);
-                Link = Color.FromArgb(110, 165, 255);
-                RiskLowFg = Color.FromArgb(86, 211, 100); RiskLowBg = Color.FromArgb(28, 54, 38);
-                RiskMidFg = Color.FromArgb(227, 179, 65); RiskMidBg = Color.FromArgb(58, 48, 22);
-                RiskHighFg = Color.FromArgb(255, 123, 114); RiskHighBg = Color.FromArgb(69, 32, 31);
-                TagFg = Color.FromArgb(174, 182, 192); TagBg = Color.FromArgb(46, 50, 56);
-                AppliedBg = Color.FromArgb(31, 43, 36); AppliedHover = Color.FromArgb(35, 49, 41); AppliedBorder = Color.FromArgb(48, 92, 62);
-                PartialBg = Color.FromArgb(43, 40, 30); PartialHover = Color.FromArgb(49, 45, 33); PartialBorder = Color.FromArgb(96, 82, 38);
+                Back = Hex(0xF1F5F9);
+                Surface = Hex(0xFFFFFF);
+                Card = Hex(0xFFFFFF);
+                Raised = Hex(0xF8FAFC);
+                Border = Hex(0xE2E8F0);
+                Text = Hex(0x0F172A);
+                Muted = Hex(0x475569);
+                AccentSoft = Hex(0xEFF6FF);
+                Selected = Hex(0xEFF6FF);
+                SelectedBorder = Hex(0x93C5FD);
+                RowHover = Hex(0xF8FAFC);
+                Disabled = Hex(0x94A3B8);
+                Input = Hex(0xFFFFFF);
+                Link = Hex(0x1D4ED8);
+                LogBack = Hex(0xF8FAFC);
+                RiskLowFg = Hex(0x15803D); RiskLowBg = Hex(0xDCFCE7);
+                RiskMidFg = Hex(0xA16207); RiskMidBg = Hex(0xFEF3C7);
+                RiskHighFg = Hex(0xB91C1C); RiskHighBg = Hex(0xFEE2E2);
+                TagFg = Hex(0x334155); TagBg = Hex(0xF1F5F9);
+                InfoFg = Hex(0x1D4ED8); InfoBg = Hex(0xDBEAFE);
+                AppliedBg = Hex(0xF0FDF4); AppliedHover = Hex(0xE7F9EE); AppliedBorder = Hex(0xBBF7D0);
+                PartialBg = Hex(0xFFFBEB); PartialHover = Hex(0xFEF3C7); PartialBorder = Hex(0xFDE68A);
             }
         }
 
-        // ---- preferência do usuário ----
+        // ---- preferências do usuário (HKCU\Software\DebloatWin) ----
         const string PrefKey = @"Software\" + AppInfo.DataFolderName;
 
         public static ThemeMode LoadMode()
@@ -100,12 +120,12 @@ namespace DebloatWin.App
                 using (RegistryKey k = Registry.CurrentUser.OpenSubKey(PrefKey))
                 {
                     string v = k == null ? null : k.GetValue("Tema") as string;
-                    if (v == "escuro") return ThemeMode.Escuro;
                     if (v == "claro") return ThemeMode.Claro;
+                    if (v == "sistema") return ThemeMode.Sistema;
                 }
             }
             catch { }
-            return ThemeMode.Sistema;
+            return ThemeMode.Escuro; // escuro é o tema principal
         }
 
         static void SaveMode(ThemeMode m)
@@ -114,6 +134,31 @@ namespace DebloatWin.App
             {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(PrefKey))
                     k.SetValue("Tema", m == ThemeMode.Escuro ? "escuro" : m == ThemeMode.Claro ? "claro" : "sistema");
+            }
+            catch { }
+        }
+
+        /// <summary>Lê uma preferência DWORD (padrão quando não existe).</summary>
+        public static bool GetPref(string name, bool def)
+        {
+            try
+            {
+                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(PrefKey))
+                {
+                    object v = k == null ? null : k.GetValue(name);
+                    if (v is int) return (int)v != 0;
+                }
+            }
+            catch { }
+            return def;
+        }
+
+        public static void SetPref(string name, bool value)
+        {
+            try
+            {
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(PrefKey))
+                    k.SetValue(name, value ? 1 : 0, RegistryValueKind.DWord);
             }
             catch { }
         }
@@ -148,9 +193,9 @@ namespace DebloatWin.App
         {
             switch (m)
             {
-                case ThemeMode.Escuro: return "Tema: Escuro";
-                case ThemeMode.Claro: return "Tema: Claro";
-                default: return "Tema: Sistema";
+                case ThemeMode.Escuro: return "Escuro";
+                case ThemeMode.Claro: return "Claro";
+                default: return "Seguir o Windows";
             }
         }
 
@@ -166,20 +211,39 @@ namespace DebloatWin.App
 
         /// <summary>Converte pixels de projeto (96 DPI) para o DPI atual.</summary>
         public static int S(int px) { return (int)Math.Round(px * scale); }
+        public static float SF(float px) { return px * scale; }
 
-        // ---- fontes ----
-        static string family;
+        // ---- fontes: Segoe UI Variable (Windows 11), Segoe UI (Windows 10) ----
+        static string family, mono;
+        static bool Exists(string name)
+        {
+            try { using (Font f = new Font(name, 10f)) return string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase); }
+            catch { return false; }
+        }
         static string Family
         {
             get
             {
                 if (family == null)
                 {
-                    family = "Segoe UI";
-                    using (Font f = new Font(family, 10f))
-                        if (!string.Equals(f.Name, family, StringComparison.OrdinalIgnoreCase)) family = FontFamily.GenericSansSerif.Name;
+                    family = FontFamily.GenericSansSerif.Name;
+                    foreach (string n in new string[] { "Segoe UI Variable Text", "Segoe UI", "Inter" })
+                        if (Exists(n)) { family = n; break; }
                 }
                 return family;
+            }
+        }
+        static string MonoFamily
+        {
+            get
+            {
+                if (mono == null)
+                {
+                    mono = FontFamily.GenericMonospace.Name;
+                    foreach (string n in new string[] { "Cascadia Mono", "Consolas", "DejaVu Sans Mono" })
+                        if (Exists(n)) { mono = n; break; }
+                }
+                return mono;
             }
         }
 
@@ -192,8 +256,12 @@ namespace DebloatWin.App
         public static readonly Font BodyBold = Font(9.75f, FontStyle.Bold);
         public static readonly Font Small = Font(8.25f, FontStyle.Regular);
         public static readonly Font SmallBold = Font(8.25f, FontStyle.Bold);
-        public static readonly Font Title = Font(15f, FontStyle.Bold);
+        public static readonly Font Caption = Font(7.5f, FontStyle.Bold);
+        public static readonly Font Title = Font(18f, FontStyle.Bold);
         public static readonly Font Subtitle = Font(11.25f, FontStyle.Bold);
+        public static readonly Font Value = Font(15f, FontStyle.Bold);
+        public static readonly Font Huge = Font(21f, FontStyle.Bold);
+        public static readonly Font Mono = new Font(MonoFamily, 9f, FontStyle.Regular, GraphicsUnit.Point);
 
         // ---- desenho ----
         public static void RiskColors(Risk r, out Color fg, out Color bg)
@@ -221,6 +289,7 @@ namespace DebloatWin.App
             GraphicsPath p = new GraphicsPath();
             int d = radius * 2;
             if (d <= 0) { p.AddRectangle(r); return p; }
+            d = Math.Min(d, Math.Min(r.Width, r.Height));
             p.AddArc(r.X, r.Y, d, d, 180, 90);
             p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
             p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
@@ -229,82 +298,96 @@ namespace DebloatWin.App
             return p;
         }
 
-        /// <summary>Desenha uma etiqueta arredondada e devolve a largura usada.</summary>
+        public static void FillRounded(Graphics g, Rectangle r, int radius, Color fill, Color border)
+        {
+            SmoothingMode old = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (GraphicsPath p = Rounded(r, radius))
+            {
+                using (SolidBrush b = new SolidBrush(fill)) g.FillPath(b, p);
+                if (border != Color.Empty) using (Pen pen = new Pen(border)) g.DrawPath(pen, p);
+            }
+            g.SmoothingMode = old;
+        }
+
+        /// <summary>Etiqueta arredondada (formato pílula). Devolve a largura usada.</summary>
         public static int DrawPill(Graphics g, string text, Font font, Color fg, Color bg, int x, int y)
         {
             Size ts = TextRenderer.MeasureText(g, text, font, Size.Empty, TextFormatFlags.NoPadding);
-            int padX = S(7), padY = S(2);
+            int padX = S(9), padY = S(3);
             Rectangle r = new Rectangle(x, y, ts.Width + padX * 2, ts.Height + padY * 2);
-            using (GraphicsPath p = Rounded(r, r.Height / 2))
-            using (SolidBrush b = new SolidBrush(bg))
-                g.FillPath(b, p);
+            FillRounded(g, r, r.Height / 2, bg, Color.Empty);
             TextRenderer.DrawText(g, text, font, new Point(x + padX, y + padY), fg, TextFormatFlags.NoPadding);
             return r.Width;
         }
 
-        public static int PillHeight(Graphics g, Font font)
+        public static int PillWidth(Graphics g, string text, Font font)
         {
-            return TextRenderer.MeasureText(g, "Ag", font, Size.Empty, TextFormatFlags.NoPadding).Height + S(4);
+            return TextRenderer.MeasureText(g, text, font, Size.Empty, TextFormatFlags.NoPadding).Width + S(18);
         }
 
-        public static int CheckSize { get { return S(18); } }
+        public static int PillHeight(Graphics g, Font font)
+        {
+            return TextRenderer.MeasureText(g, "Ag", font, Size.Empty, TextFormatFlags.NoPadding).Height + S(6);
+        }
 
-        /// <summary>Caixa de seleção própria, igual nos dois temas.</summary>
+        /// <summary>Barra de progresso arredondada. <paramref name="value"/> de 0 a 1; negativo = sem porcentagem (faixa em movimento).</summary>
+        public static void DrawBar(Graphics g, Rectangle r, float value, Color fill, float phase)
+        {
+            FillRounded(g, r, r.Height / 2, Border, Color.Empty);
+            if (value < 0)
+            {
+                int w = Math.Max(r.Height, r.Width * 28 / 100);
+                int x = r.X + (int)((r.Width + w) * (phase - Math.Floor(phase))) - w;
+                Rectangle seg = Rectangle.Intersect(new Rectangle(x, r.Y, w, r.Height), r);
+                if (seg.Width > 0) FillRounded(g, seg, r.Height / 2, fill, Color.Empty);
+                return;
+            }
+            int fw = (int)Math.Round(r.Width * Math.Max(0f, Math.Min(1f, value)));
+            if (fw > 0) FillRounded(g, new Rectangle(r.X, r.Y, Math.Max(fw, r.Height), r.Height), r.Height / 2, fill, Color.Empty);
+        }
+
+        public static int CheckSize { get { return S(20); } }
+
         public static void DrawCheck(Graphics g, Rectangle r, bool isChecked, bool enabled, bool hover)
         {
             DrawCheck(g, r, isChecked, enabled, hover, CheckTone.Normal);
         }
 
-        /// <summary>
-        /// Caixa de seleção com tom de situação: verde com visto = já aplicado neste PC;
-        /// amarela com traço = parcial. Marcada para aplicar, volta ao azul normal.
-        /// </summary>
+        /// <summary>Caixa de seleção própria (fica igual nos dois temas).</summary>
         public static void DrawCheck(Graphics g, Rectangle r, bool isChecked, bool enabled, bool hover, CheckTone tone)
         {
             SmoothingMode old = g.SmoothingMode;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            if (!isChecked && enabled && tone != CheckTone.Normal)
-            {
-                Color fg = tone == CheckTone.Applied ? RiskLowFg : RiskMidFg;
-                Color bg = tone == CheckTone.Applied ? RiskLowBg : RiskMidBg;
-                using (GraphicsPath p = Rounded(r, S(4)))
-                {
-                    using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
-                    using (Pen pen = new Pen(hover ? Accent : fg, Math.Max(1f, S(1) * 1.4f))) g.DrawPath(pen, p);
-                }
-                using (Pen pen = new Pen(fg, Math.Max(2f, S(2))))
-                {
-                    pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round; pen.LineJoin = LineJoin.Round;
-                    if (tone == CheckTone.Applied)
-                        g.DrawLines(pen, new PointF[] {
-                            new PointF(r.X + r.Width * 0.24f, r.Y + r.Height * 0.52f),
-                            new PointF(r.X + r.Width * 0.43f, r.Y + r.Height * 0.70f),
-                            new PointF(r.X + r.Width * 0.77f, r.Y + r.Height * 0.32f) });
-                    else
-                        g.DrawLine(pen, r.X + r.Width * 0.28f, r.Y + r.Height * 0.5f, r.X + r.Width * 0.72f, r.Y + r.Height * 0.5f);
-                }
-                g.SmoothingMode = old;
-                return;
-            }
-            Color border = !enabled ? Disabled : isChecked ? Accent : hover ? Accent : Muted;
-            Color fill = !enabled ? TagBg : isChecked ? Accent : Input;
-            using (GraphicsPath p = Rounded(r, S(4)))
-            {
-                using (SolidBrush b = new SolidBrush(fill)) g.FillPath(b, p);
-                using (Pen pen = new Pen(border, Math.Max(1f, S(1) * 1.4f))) g.DrawPath(pen, p);
-            }
+            int rad = S(6);
             if (isChecked)
             {
-                using (Pen pen = new Pen(enabled ? Color.White : Disabled, Math.Max(2f, S(2))))
+                using (GraphicsPath p = Rounded(r, rad))
+                using (SolidBrush b = new SolidBrush(enabled ? (hover ? AccentHover : Accent) : TagBg))
+                    g.FillPath(b, p);
+                Icons.Draw(g, "check", Rectangle.Inflate(r, -S(3), -S(3)), enabled ? Color.White : Disabled, 3f);
+            }
+            else
+            {
+                Color border = !enabled ? Border : hover ? Bright : (Dark ? Hex(0x475569) : Hex(0x94A3B8));
+                Rectangle rr = new Rectangle(r.X, r.Y, r.Width - 1, r.Height - 1);
+                using (GraphicsPath p = Rounded(rr, rad))
                 {
-                    pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round; pen.LineJoin = LineJoin.Round;
-                    PointF[] pts = {
-                        new PointF(r.X + r.Width * 0.24f, r.Y + r.Height * 0.52f),
-                        new PointF(r.X + r.Width * 0.43f, r.Y + r.Height * 0.70f),
-                        new PointF(r.X + r.Width * 0.77f, r.Y + r.Height * 0.32f) };
-                    g.DrawLines(pen, pts);
+                    using (SolidBrush b = new SolidBrush(enabled ? Input : TagBg)) g.FillPath(b, p);
+                    using (Pen pen = new Pen(border, Math.Max(1.5f, SF(1.5f)))) g.DrawPath(pen, p);
                 }
             }
+            g.SmoothingMode = old;
+        }
+
+        /// <summary>Anel de foco (navegação pelo teclado).</summary>
+        public static void DrawFocus(Graphics g, Rectangle r, int radius)
+        {
+            SmoothingMode old = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            using (GraphicsPath p = Rounded(r, radius))
+            using (Pen pen = new Pen(Dark ? Hex(0x93C5FD) : Accent, SF(2f)))
+                g.DrawPath(pen, p);
             g.SmoothingMode = old;
         }
     }
@@ -331,7 +414,7 @@ namespace DebloatWin.App
         static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
         static int build = -1;
-        static int Build
+        public static int Build
         {
             get
             {
@@ -361,7 +444,7 @@ namespace DebloatWin.App
             try { SetPreferredAppMode(dark ? 2 : 3); FlushMenuThemes(); } catch { }
         }
 
-        /// <summary>Barra de título escura (Windows 10 1809+ e Windows 11).</summary>
+        /// <summary>Barra de título escura (Windows 10 1809+ e Windows 11) e, no 11, cantos e cor da moldura.</summary>
         public static void TitleBar(Form f, bool dark)
         {
             if (!IsWindows || !f.IsHandleCreated || Build < 17763) return;
@@ -370,6 +453,16 @@ namespace DebloatWin.App
                 int v = dark ? 1 : 0;
                 int attr = Build >= 18985 ? 20 : 19;
                 DwmSetWindowAttribute(f.Handle, attr, ref v, 4);
+                if (Build >= 22000)
+                {
+                    // DWMWA_CAPTION_COLOR (35) e DWMWA_BORDER_COLOR (34): barra de título na cor da barra lateral
+                    Color c = Theme.Surface;
+                    int bgr = c.R | (c.G << 8) | (c.B << 16);
+                    DwmSetWindowAttribute(f.Handle, 35, ref bgr, 4);
+                    Color b = Theme.Border;
+                    int bb = b.R | (b.G << 8) | (b.B << 16);
+                    DwmSetWindowAttribute(f.Handle, 34, ref bb, 4);
+                }
                 // força o Windows a redesenhar a moldura
                 SetWindowPos(f.Handle, IntPtr.Zero, 0, 0, 0, 0, 0x0002 | 0x0001 | 0x0004 | 0x0020 | 0x0010);
             }
@@ -408,7 +501,7 @@ namespace DebloatWin.App
         {
             AutoScaleMode = AutoScaleMode.None;
             Font = Theme.Body;
-            BackColor = Theme.Surface;
+            BackColor = Theme.Back;
             ForeColor = Theme.Text;
         }
 
@@ -416,144 +509,6 @@ namespace DebloatWin.App
         {
             base.OnHandleCreated(e);
             Native.TitleBar(this, Theme.Dark);
-        }
-    }
-
-    /// <summary>Botão plano com cantos arredondados (primário ou secundário).</summary>
-    public class FlatButton : Button
-    {
-        public bool Primary;
-        bool hover;
-
-        public FlatButton(string text, bool primary)
-        {
-            Text = text;
-            Primary = primary;
-            FlatStyle = FlatStyle.Flat;
-            FlatAppearance.BorderSize = 0;
-            Font = Theme.BodyBold;
-            Cursor = Cursors.Hand;
-            Height = Theme.S(36);
-            Padding = new Padding(Theme.S(14), 0, Theme.S(14), 0);
-            AutoSize = false;
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
-            int w = TextRenderer.MeasureText(text, Font).Width + Theme.S(36);
-            Width = Math.Max(Theme.S(110), w);
-        }
-
-        protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
-        protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            Color parent = Parent != null ? Parent.BackColor : Theme.Back;
-            g.Clear(parent);
-            Color bg, fg, border;
-            if (!Enabled) { bg = Theme.TagBg; fg = Theme.Disabled; border = Theme.TagBg; }
-            else if (Primary) { bg = hover ? Theme.AccentHover : Theme.Accent; fg = Color.White; border = bg; }
-            else { bg = hover ? Theme.Selected : Theme.Surface; fg = Theme.Text; border = Theme.Border; }
-            Rectangle r = new Rectangle(0, 0, Width - 1, Height - 1);
-            using (GraphicsPath p = Theme.Rounded(r, Theme.S(6)))
-            {
-                using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
-                using (Pen pen = new Pen(border)) g.DrawPath(pen, p);
-            }
-            TextRenderer.DrawText(g, Text, Font, r, fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
-        }
-    }
-
-    /// <summary>Caixa de seleção com texto, desenhada à mão (fica correta no tema escuro).</summary>
-    public class CheckToggle : Control
-    {
-        bool isChecked, hover;
-        public event EventHandler CheckedChanged;
-
-        public CheckToggle(string text)
-        {
-            Text = text;
-            Font = Theme.Body;
-            Cursor = Cursors.Hand;
-            TabStop = true;
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint |
-                     ControlStyles.Selectable | ControlStyles.ResizeRedraw, true);
-            AccessibleRole = AccessibleRole.CheckButton;
-            AccessibleName = text;
-            Size sz = TextRenderer.MeasureText(text, Font);
-            Size = new Size(Theme.CheckSize + Theme.S(8) + sz.Width + Theme.S(4), Math.Max(Theme.CheckSize, sz.Height) + Theme.S(6));
-        }
-
-        public bool Checked
-        {
-            get { return isChecked; }
-            set { if (value == isChecked) return; isChecked = value; Invalidate(); if (CheckedChanged != null) CheckedChanged(this, EventArgs.Empty); }
-        }
-
-        protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
-        protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
-        protected override void OnClick(EventArgs e) { Focus(); Checked = !Checked; base.OnClick(e); }
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Space) { Checked = !Checked; e.Handled = true; }
-            base.OnKeyDown(e);
-        }
-        protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
-        protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.Clear(Parent != null ? Parent.BackColor : Theme.Surface);
-            int cs = Theme.CheckSize;
-            Rectangle box = new Rectangle(0, (Height - cs) / 2, cs, cs);
-            Theme.DrawCheck(g, box, isChecked, Enabled, hover);
-            TextRenderer.DrawText(g, Text, Font, new Rectangle(cs + Theme.S(8), 0, Width - cs - Theme.S(8), Height),
-                Enabled ? Theme.Text : Theme.Disabled, TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
-            if (Focused && ShowFocusCues)
-                ControlPaint.DrawFocusRectangle(g, new Rectangle(cs + Theme.S(5), 1, Width - cs - Theme.S(6), Height - 2));
-        }
-    }
-
-    /// <summary>Campo de texto com borda arredondada no tema atual.</summary>
-    public class SearchField : Panel
-    {
-        public readonly TextBox Box;
-
-        public SearchField()
-        {
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
-            Height = Theme.S(34);
-            Padding = new Padding(Theme.S(10), Theme.S(8), Theme.S(10), Theme.S(4));
-            Box = new TextBox();
-            Box.BorderStyle = BorderStyle.None;
-            Box.Dock = DockStyle.Fill;
-            Box.Font = Theme.Body;
-            Controls.Add(Box);
-            Box.GotFocus += delegate { Invalidate(); };
-            Box.LostFocus += delegate { Invalidate(); };
-            ApplyColors();
-        }
-
-        public void ApplyColors()
-        {
-            BackColor = Theme.Input;
-            Box.BackColor = Theme.Input;
-            Box.ForeColor = Theme.Text;
-            Invalidate();
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Parent != null ? Parent.BackColor : Theme.Back);
-            Rectangle r = new Rectangle(0, 0, Width - 1, Height - 1);
-            using (GraphicsPath p = Theme.Rounded(r, Theme.S(6)))
-            {
-                using (SolidBrush b = new SolidBrush(Theme.Input)) g.FillPath(b, p);
-                using (Pen pen = new Pen(Box.Focused ? Theme.Accent : Theme.Border, Box.Focused ? 1.5f : 1f)) g.DrawPath(pen, p);
-            }
         }
     }
 }
