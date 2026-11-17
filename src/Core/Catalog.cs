@@ -254,11 +254,6 @@ namespace DebloatWin.Core
               .Appx("Microsoft.XboxApp", "Microsoft.GamingApp", "Microsoft.XboxGamingOverlay", "Microsoft.XboxGameOverlay",
                     "Microsoft.XboxSpeechToTextOverlay", "Microsoft.Xbox.TCUI", "Microsoft.XboxIdentityProvider");
 
-            T("apps.store", c, Risk.Alto, "Remover Microsoft Store",
-              "Remove a loja de apps do Windows.")
-              .Warn("Sem a Store, apps da loja deixam de atualizar e reinstalar é trabalhoso. Use só se tiver certeza.")
-              .Appx("Microsoft.WindowsStore", "Microsoft.StorePurchaseApp");
-
             T("apps.onedrive", c, Risk.Medio, "Remover OneDrive",
               "Desinstala o OneDrive, impede a reinstalação e tira o ícone do Explorer.")
               .Warn("Arquivos que estão só na nuvem deixam de sincronizar. Confirme se o usuário não usa o OneDrive.")
@@ -321,19 +316,8 @@ namespace DebloatWin.Core
               .Dw(PolWin + "Windows Search", "AllowCortana", 0)
               .Win10();
 
-            T("apps.ie", c, Risk.Alto, "Remover Internet Explorer 11",
-              "Remove o IE11 do Windows 10.")
-              .Warn("Alguns sistemas antigos de bancos, prefeituras e SEFAZ ainda dependem do IE ou do modo IE do Edge.")
-              .Capability("Browser.InternetExplorer~~~~*")
-              .Win10();
-
             T("apps.wmp", c, Risk.Medio, "Remover Windows Media Player (clássico)", "Remove o player antigo do Windows.")
               .Capability("Media.WindowsMediaPlayer~~~~*");
-
-            T("apps.faxscan", c, Risk.Medio, "Remover Fax e Scanner do Windows",
-              "Remove o app Fax e Scanner do Windows.")
-              .Warn("Quem digitaliza documentos por ele perde o acesso. Os drivers do scanner continuam.")
-              .Capability("Print.Fax.Scan~~~~*");
 
             T("apps.xps", c, Risk.Medio, "Desativar Serviços XPS", "Remove a impressora virtual Microsoft XPS Document Writer.")
               .Feature("Printing-XPSServices-Features").Restart();
@@ -441,18 +425,6 @@ namespace DebloatWin.Core
               .Sz(Consent + "userAccountInformation", "Value", "Deny")
               .Sz(Consent + "appDiagnostics", "Value", "Deny");
 
-            T("priv.location", c, Risk.Medio, "Desativar localização",
-              "Desliga o serviço de localização para todo o PC.")
-              .Warn("O fuso horário automático, Mapas, Clima e \"Encontrar meu dispositivo\" deixam de funcionar.")
-              .Sz(Consent + "location", "Value", "Deny");
-
-            T("priv.camera", c, Risk.Alto, "Bloquear câmera para apps", "Nenhum app consegue usar a webcam.")
-              .Warn("Quebra videochamadas (Teams, Zoom, WhatsApp, Meet no navegador).")
-              .Sz(Consent + "webcam", "Value", "Deny");
-
-            T("priv.mic", c, Risk.Alto, "Bloquear microfone para apps", "Nenhum app consegue usar o microfone.")
-              .Warn("Quebra chamadas de voz e videochamadas.")
-              .Sz(Consent + "microphone", "Value", "Deny");
         }
 
         // ==================================================================
@@ -516,10 +488,6 @@ namespace DebloatWin.Core
               .Sz(@"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", "POWERSHELL_TELEMETRY_OPTOUT", "1")
               .Sz(@"HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment", "DOTNET_CLI_TELEMETRY_OPTOUT", "1");
 
-            T("tel.wer", c, Risk.Medio, "Desativar Relatório de Erros do Windows",
-              "Os travamentos de programas deixam de ser enviados à Microsoft.")
-              .Warn("Também deixa de ajudar no diagnóstico de travamentos e telas azuis.")
-              .Dw(PolWin + "Windows Error Reporting", "Disabled", 1);
         }
 
         // ==================================================================
@@ -535,34 +503,6 @@ namespace DebloatWin.Core
               "Desliga a Otimização de Entrega entre PCs. O PC não usa a internet para enviar atualizações a outros.")
               .Dw(PolWin + "DeliveryOptimization", "DODownloadMode", 0);
 
-            T("upd.defer", c, Risk.Baixo, "Adiar atualizações de recursos por 365 dias",
-              "Atualizações de versão (ex.: 23H2 → 24H2) só chegam um ano depois. Atualizações de segurança continuam.")
-              .Dw(PolWU, "DeferFeatureUpdates", 1)
-              .Dw(PolWU, "DeferFeatureUpdatesPeriodInDays", 365)
-              .Pro();
-
-            T("upd.drivers", c, Risk.Medio, "Não instalar drivers pelo Windows Update",
-              "O Windows Update deixa de trocar drivers sozinho (útil para placa de vídeo e impressoras específicas).")
-              .Warn("Drivers novos passam a ser instalados manualmente.")
-              .Dw(PolWU, "ExcludeWUDriversInQualityUpdate", 1);
-
-            T("upd.storeauto", c, Risk.Medio, "Desativar atualização automática da Store",
-              "Apps da Microsoft Store deixam de se atualizar sozinhos.")
-              .Dw(@"HKLM\SOFTWARE\Policies\Microsoft\WindowsStore", "AutoDownload", 2);
-
-            T("upd.lockwin10", c, Risk.Medio, "Travar no Windows 10 22H2 (não oferecer o Windows 11)",
-              "Impede que o Windows Update ofereça o upgrade para o Windows 11.")
-              .Warn("O Windows 10 só recebe atualizações de segurança com o programa ESU desde 14/10/2025.")
-              .Dw(PolWU, "TargetReleaseVersion", 1)
-              .Sz(PolWU, "ProductVersion", "Windows 10")
-              .Sz(PolWU, "TargetReleaseVersionInfo", "22H2")
-              .Win10();
-
-            T("upd.disable", c, Risk.Alto, "Desativar o Windows Update por completo",
-              "Desliga as atualizações automáticas e o serviço do Windows Update.")
-              .Warn("O PC fica sem atualizações de segurança. Use só em máquinas isoladas e reative depois.")
-              .Dw(PolWU + @"\AU", "NoAutoUpdate", 1)
-              .Svc("wuauserv", StartMode.Desativado);
         }
 
         // ==================================================================
@@ -592,27 +532,6 @@ namespace DebloatWin.Core
 
             T("perf.transparency", c, Risk.Baixo, "Desativar transparência", "Desliga o efeito de vidro na barra e no Iniciar.")
               .Dw(@"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "EnableTransparency", 0);
-
-            T("perf.highperf", c, Risk.Baixo, "Plano de energia Alto desempenho",
-              "Ativa o plano Alto desempenho. Se o PC não tiver esse plano, ele é criado.")
-              .Warn("Em notebooks a bateria dura menos.")
-              .Cmd("Ativar plano Alto desempenho",
-                   "$rx = '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})'\n" +
-                   "$cur = [regex]::Match((powercfg /getactivescheme | Out-String), $rx).Value\n" +
-                   "$hp = '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'\n" +
-                   "if ($cur -eq $hp) { Write-Output 'SKIP:Já estava em Alto desempenho'; return }\n" +
-                   "powercfg /setactive $hp | Out-Null\n" +
-                   "if ($LASTEXITCODE -ne 0) {\n" +
-                   "  $hp = [regex]::Match((powercfg /duplicatescheme 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c | Out-String), $rx).Value\n" +
-                   "  if (-not $hp) { throw 'Não foi possível criar o plano Alto desempenho' }\n" +
-                   "  powercfg /setactive $hp | Out-Null\n" +
-                   "}\n" +
-                   "if ($cur) { Write-Output \"UNDO:$cur\" }\n" +
-                   "Write-Output 'Plano Alto desempenho ativado'\n",
-                   "foreach ($g in {UNDO}) { powercfg /setactive $g | Out-Null }\n",
-                   "Voltar ao plano de energia anterior")
-              .Detect("$a = powercfg /getactivescheme | Out-String\n" +
-                      "if ($a -match '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c' -or $a -match 'Alto desempenho|High performance') { '1' } else { '0' }");
 
             T("perf.ultimate", c, Risk.Baixo, "Plano de energia Desempenho Máximo",
               "Cria e ativa o plano Desempenho Máximo (Ultimate Performance), que evita economia de energia no processador.")
@@ -693,11 +612,6 @@ namespace DebloatWin.Core
               .Sz(@"HKCU\Control Panel\Mouse", "MouseThreshold2", "0")
               .Restart();
 
-            T("game.windowed", c, Risk.Baixo, "Otimizações para jogos em janela",
-              "Melhora a latência de jogos DirectX 10/11 em janela ou sem borda.")
-              .Sz(@"HKCU\Software\Microsoft\DirectX\UserGpuPreferences", "DirectXUserGlobalSettings", "SwapEffectUpgradeEnable=1;")
-              .Win11();
-
             T("game.priority", c, Risk.Baixo, "Mais prioridade de CPU e GPU para jogos",
               "Ajusta o agendador multimídia (MMCSS) para dar prioridade alta a jogos.")
               .Dw(@"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile", "SystemResponsiveness", 10)
@@ -712,19 +626,6 @@ namespace DebloatWin.Core
               .Dw(@"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile", "NetworkThrottlingIndex", 0xFFFFFFFF)
               .Restart();
 
-            T("game.fso", c, Risk.Medio, "Desativar otimizações de tela cheia",
-              "Força a tela cheia exclusiva em jogos antigos. Pode reduzir o input lag.")
-              .Warn("Pode atrapalhar HDR e a troca rápida com Alt+Tab.")
-              .Dw(GameCfg, "GameDVR_FSEBehaviorMode", 2)
-              .Dw(GameCfg, "GameDVR_HonorUserFSEBehaviorMode", 1)
-              .Dw(GameCfg, "GameDVR_FSEBehavior", 2)
-              .Dw(GameCfg, "GameDVR_DXGIHonorFSEWindowsCompatible", 1);
-
-            T("game.hags", c, Risk.Medio, "Ativar agendamento de GPU acelerado por hardware",
-              "Deixa a placa de vídeo gerenciar a própria memória. Ajuda em GPUs recentes (NVIDIA 10xx+, AMD RX 5000+).")
-              .Warn("Em algumas placas e drivers causa travamentos. Exige reiniciar.")
-              .Dw(@"HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers", "HwSchMode", 2)
-              .Restart();
         }
 
         // ==================================================================
@@ -775,14 +676,6 @@ namespace DebloatWin.Core
               .Sz(@"HKCU\Control Panel\Accessibility\ToggleKeys", "Flags", "58")
               .Sz(@"HKCU\Control Panel\Accessibility\Keyboard Response", "Flags", "122");
 
-            T("ui.taskview", c, Risk.Baixo, "Ocultar botão Visão de Tarefas", "Tira o botão de áreas de trabalho da barra.")
-              .Dw(Adv, "ShowTaskViewButton", 0);
-
-            T("ui.recent", c, Risk.Baixo, "Não mostrar arquivos recentes", "Esconde arquivos recentes e pastas frequentes no Iniciar e no Explorer.")
-              .Dw(Adv, "Start_TrackDocs", 0)
-              .Dw(@"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer", "ShowRecent", 0)
-              .Dw(@"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer", "ShowFrequent", 0);
-
             T("ui.bsod", c, Risk.Baixo, "Tela azul com detalhes técnicos", "Mostra o código e o driver causador na tela azul.")
               .Dw(@"HKLM\SYSTEM\CurrentControlSet\Control\CrashControl", "DisplayParameters", 1);
 
@@ -793,17 +686,9 @@ namespace DebloatWin.Core
               .Dw(Adv, "TaskbarAl", 0)
               .Win11();
 
-            T("ui.dark", c, Risk.Baixo, "Tema escuro", "Ativa o modo escuro no Windows e nos apps.")
-              .Dw(@"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 0)
-              .Dw(@"HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "SystemUsesLightTheme", 0);
-
             T("ui.seconds", c, Risk.Baixo, "Mostrar segundos no relógio", "O relógio da barra mostra os segundos.")
               .Dw(Adv, "ShowSecondsInSystemClock", 1);
 
-            T("ui.snapflyout", c, Risk.Baixo, "Desativar sugestões de layout no botão maximizar",
-              "Passar o mouse sobre o maximizar deixa de abrir os layouts de janelas.")
-              .Dw(Adv, "EnableSnapAssistFlyout", 0)
-              .Win11();
         }
 
         // ==================================================================
@@ -835,45 +720,10 @@ namespace DebloatWin.Core
                    "finally { Start-Service bits, wuauserv -ErrorAction SilentlyContinue }\n" +
                    "Write-Output 'Cache do Windows Update limpo'\n");
 
-            T("tool.components", c, Risk.Baixo, "Limpeza de componentes do Windows (WinSxS)",
-              "Remove versões antigas de componentes substituídos por atualizações. Pode demorar vários minutos.")
-              .Cmd("DISM StartComponentCleanup",
-                   "Dism.exe /Online /Cleanup-Image /StartComponentCleanup /Quiet\n" +
-                   "if ($LASTEXITCODE -ne 0) { throw \"DISM retornou $LASTEXITCODE\" }\n" +
-                   "Write-Output 'Limpeza de componentes concluída'\n", 3600);
-
-            T("tool.dns", c, Risk.Baixo, "Limpar cache DNS", "Resolve sites que não abrem depois de mudanças de DNS.")
-              .Cmd("ipconfig /flushdns", "ipconfig /flushdns | Out-Null\nWrite-Output 'Cache DNS limpo'\n");
-
             T("tool.recycle", c, Risk.Medio, "Esvaziar a Lixeira", "Apaga de vez tudo o que está na Lixeira de todos os discos.")
               .Warn("Os arquivos da Lixeira não podem ser recuperados depois.")
               .Cmd("Esvaziar Lixeira", "Clear-RecycleBin -Force -ErrorAction SilentlyContinue\nWrite-Output 'Lixeira esvaziada'\n");
 
-            T("tool.sfc", c, Risk.Baixo, "Verificar arquivos do sistema (SFC)",
-              "Procura e corrige arquivos do Windows corrompidos. Leva de 5 a 20 minutos.")
-              .Cmd("sfc /scannow",
-                   "sfc.exe /scannow | Out-Null\n" +
-                   "switch ($LASTEXITCODE) {\n" +
-                   "  0 { Write-Output 'SFC concluído (veja CBS.log para detalhes)' }\n" +
-                   "  default { throw \"SFC terminou com código $LASTEXITCODE. Rode o reparo de imagem (DISM) e tente de novo.\" }\n" +
-                   "}\n", 3600)
-              .Restart();
-
-            T("tool.dism", c, Risk.Baixo, "Reparar imagem do Windows (DISM)",
-              "Baixa da Microsoft e repara componentes corrompidos do Windows. Precisa de internet e pode demorar.")
-              .Cmd("DISM RestoreHealth",
-                   "Dism.exe /Online /Cleanup-Image /RestoreHealth /Quiet\n" +
-                   "if ($LASTEXITCODE -ne 0) { throw \"DISM retornou $LASTEXITCODE\" }\n" +
-                   "Write-Output 'Imagem do Windows reparada'\n", 3600);
-
-            T("tool.netreset", c, Risk.Alto, "Resetar rede (Winsock e TCP/IP)",
-              "Recria a configuração de rede do Windows. Resolve internet que não funciona por erro de configuração.")
-              .Warn("Apaga IPs fixos e configurações manuais de rede (ex.: impressora fiscal ou PDV em rede). Anote antes. Exige reiniciar.")
-              .Cmd("netsh winsock reset / int ip reset",
-                   "netsh winsock reset | Out-Null\n" +
-                   "netsh int ip reset | Out-Null\n" +
-                   "Write-Output 'Rede resetada. Reinicie o computador.'\n")
-              .Restart();
         }
     }
 }

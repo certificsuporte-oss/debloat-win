@@ -67,7 +67,7 @@ namespace DebloatWin.Tests
                 foreach (TweakAction a in t.Actions)
                 {
                     ServiceStartAction s = a as ServiceStartAction;
-                    if (s != null && t.Id != "upd.disable")
+                    if (s != null)
                         Check(!protectedServices.Contains(s.Service), "não mexe em serviço protegido " + s.Service + ": " + t.Id);
                     Check(!string.IsNullOrEmpty(a.Describe()), "ação descrita: " + t.Id);
                     Check(!string.IsNullOrEmpty(a.ToPowerShell()), "ação exportável: " + t.Id);
@@ -96,8 +96,10 @@ namespace DebloatWin.Tests
                 }
             Console.WriteLine("  programas: " + apps);
             Check(apps == 5, "5 programas no catálogo");
+            // decisão de 17/11/2026: o catálogo é só o Padrão (o resto foi tirado do app)
+            Check(padraoCount == all.Count, "todo o catálogo está no Padrão");
             foreach (string id in new string[] { "apps.store", "upd.disable", "priv.camera", "priv.mic", "tool.netreset", "apps.ie" })
-                Check(!Array.Exists(Catalog.PadraoIds, delegate(string x) { return x == id; }), "fora do Padrão: " + id);
+                Check(!catalogIds.Contains(id), "removido do catálogo: " + id);
             Check(all[all.Count - 1].Id == "fim.windowsupdate", "Windows Update é o último item da lista");
             foreach (Category c in Enum.GetValues(typeof(Category)))
                 Check(all.Exists(delegate(Tweak t) { return t.Category == c; }), "categoria com itens: " + c);

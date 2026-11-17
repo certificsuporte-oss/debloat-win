@@ -4,7 +4,7 @@ Programa para Windows 10 e 11 que remove apps pré-instalados, reduz telemetria 
 
 - Um único `.exe` de ~190 KB. Roda no .NET Framework 4.8, que já vem no Windows 10 e 11: não precisa instalar nada.
 - Pede permissão de administrador ao abrir.
-- Catálogo próprio de 119 ajustes em 8 categorias, escrito do zero (não usa código do WinScript nem de outro projeto).
+- Catálogo próprio de 94 ajustes em 8 categorias, mais 5 programas, apps padrão e drivers/atualizações, escrito do zero (não usa código do WinScript nem de outro projeto).
 
 ## Baixar
 
@@ -77,11 +77,11 @@ Enquanto rodam, a janela de progresso mostra a etapa e a porcentagem ao vivo (ex
 
 ### Preset Padrão
 
-Um único preset, **Padrão**, com 94 dos 119 ajustes mais os 5 programas (Google Chrome, WinRAR, VLC, AnyDesk e Adobe Acrobat Reader), o VLC/Adobe como padrão e, por último, drivers e Windows Update, escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive, Media Player, Email/Calendário e Alarmes), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
+Um único preset, **Padrão**, com todos os 94 ajustes mais os 5 programas (Google Chrome, WinRAR, VLC, AnyDesk e Adobe Acrobat Reader), o VLC/Adobe como padrão e, por último, drivers e Windows Update, escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive, Media Player, Email/Calendário e Alarmes), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
 
 O botão **Padrão** marca só o que ainda falta no PC (o que já está aplicado fica de fora). A lista fica em `Catalog.PadraoIds` (`src/Core/Catalog.cs`).
 
-Ficam fora do Padrão, só manualmente: remover a Store, desativar o Windows Update, travar no Windows 10, bloquear câmera/microfone, localização, remover IE/Fax e Scanner, Relatório de Erros, drivers pelo Windows Update, SFC/DISM, resetar rede, entre outros.
+O catálogo é só o Padrão. Em 17/11/2026 saíram do app os 25 ajustes que ficavam fora dele (remover Store/IE/Fax e Scanner, localização, câmera, microfone, Relatório de Erros, adiar/travar/desativar o Windows Update, não instalar drivers pelo WU, Store sem atualizar sozinha, Alto desempenho, otimizações de jogos em janela/tela cheia, HAGS, Visão de Tarefas, arquivos recentes, tema escuro, layouts do maximizar, WinSxS, DNS, SFC, DISM e reset de rede). Eles continuam no histórico do git se precisar de algum.
 
 ### O que o programa nunca mexe
 

@@ -60,7 +60,7 @@ static class PreviewProgram
                     case 1: Call(f, "SelectCategory", Category.Apps); break;
                     case 2: Shot(f, outDir + "/2-rigido-apps.png"); Call(f, "SelectCategory", Category.Programas); break;
                     case 3: Shot(f, outDir + "/3-programas.png");
-                            Tweak tw = Catalog.All().Find(delegate(Tweak x) { return x.Id == "perf.highperf"; });
+                            Tweak tw = Catalog.All().Find(delegate(Tweak x) { return x.Id == "perf.ultimate"; });
                             DetailsForm d = new DetailsForm(tw); d.Show(); d.Location = new Point(0, 0);
                             d.Shown += delegate { };
                             dlg = d; break;
