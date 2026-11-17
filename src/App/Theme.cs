@@ -17,6 +17,14 @@ namespace DebloatWin.App
         Claro
     }
 
+    /// <summary>Tom da caixa de seleção conforme a situação do ajuste no PC.</summary>
+    public enum CheckTone
+    {
+        Normal,
+        Applied,
+        Partial
+    }
+
     public static class Theme
     {
         // ---- paleta atual (trocada por Apply) ----
@@ -239,8 +247,40 @@ namespace DebloatWin.App
         /// <summary>Caixa de seleção própria, igual nos dois temas.</summary>
         public static void DrawCheck(Graphics g, Rectangle r, bool isChecked, bool enabled, bool hover)
         {
+            DrawCheck(g, r, isChecked, enabled, hover, CheckTone.Normal);
+        }
+
+        /// <summary>
+        /// Caixa de seleção com tom de situação: verde com visto = já aplicado neste PC;
+        /// amarela com traço = parcial. Marcada para aplicar, volta ao azul normal.
+        /// </summary>
+        public static void DrawCheck(Graphics g, Rectangle r, bool isChecked, bool enabled, bool hover, CheckTone tone)
+        {
             SmoothingMode old = g.SmoothingMode;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            if (!isChecked && enabled && tone != CheckTone.Normal)
+            {
+                Color fg = tone == CheckTone.Applied ? RiskLowFg : RiskMidFg;
+                Color bg = tone == CheckTone.Applied ? RiskLowBg : RiskMidBg;
+                using (GraphicsPath p = Rounded(r, S(4)))
+                {
+                    using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, p);
+                    using (Pen pen = new Pen(hover ? Accent : fg, Math.Max(1f, S(1) * 1.4f))) g.DrawPath(pen, p);
+                }
+                using (Pen pen = new Pen(fg, Math.Max(2f, S(2))))
+                {
+                    pen.StartCap = LineCap.Round; pen.EndCap = LineCap.Round; pen.LineJoin = LineJoin.Round;
+                    if (tone == CheckTone.Applied)
+                        g.DrawLines(pen, new PointF[] {
+                            new PointF(r.X + r.Width * 0.24f, r.Y + r.Height * 0.52f),
+                            new PointF(r.X + r.Width * 0.43f, r.Y + r.Height * 0.70f),
+                            new PointF(r.X + r.Width * 0.77f, r.Y + r.Height * 0.32f) });
+                    else
+                        g.DrawLine(pen, r.X + r.Width * 0.28f, r.Y + r.Height * 0.5f, r.X + r.Width * 0.72f, r.Y + r.Height * 0.5f);
+                }
+                g.SmoothingMode = old;
+                return;
+            }
             Color border = !enabled ? Disabled : isChecked ? Accent : hover ? Accent : Muted;
             Color fill = !enabled ? TagBg : isChecked ? Accent : Input;
             using (GraphicsPath p = Rounded(r, S(4)))

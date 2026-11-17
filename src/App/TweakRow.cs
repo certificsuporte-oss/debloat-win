@@ -117,7 +117,13 @@ namespace DebloatWin.App
 
             // caixa de seleção (desenhada à mão: fica certa no tema escuro)
             int cs = Theme.CheckSize;
-            Theme.DrawCheck(g, new Rectangle(PadX, PadY + Math.Max(0, (titleHeight - cs) / 2), cs, cs), isChecked, Applicable, hover);
+            CheckTone tone = CheckTone.Normal;
+            if (Applicable && status != null)
+            {
+                if (status.State == TweakState.Applied) tone = CheckTone.Applied;
+                else if (status.State == TweakState.Partial) tone = CheckTone.Partial;
+            }
+            Theme.DrawCheck(g, new Rectangle(PadX, PadY + Math.Max(0, (titleHeight - cs) / 2), cs, cs), isChecked, Applicable, hover, tone);
 
             Color title = Applicable ? Theme.Text : Theme.Disabled;
             Color muted = Applicable ? Theme.Muted : Theme.Disabled;
