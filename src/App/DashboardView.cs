@@ -188,7 +188,7 @@ namespace DebloatWin.App
             Resource(g, new Rectangle(res.X + Theme.S(20) + colW, vy, colW, Theme.S(60)), "memory",
                 s.RamTotalGb > 0 ? Fmt(s.RamUsedGb) + "/" + Fmt(s.RamTotalGb) : "—", "Memória (GB)", s.RamTotalGb > 0 ? (float)(s.RamUsedGb / s.RamTotalGb) : -1);
             Resource(g, new Rectangle(res.X + Theme.S(20) + colW * 2, vy, colW, Theme.S(60)), "drive",
-                s.DiskTotalGb > 0 ? Fmt(s.DiskFreeGb) + " GB" : "—", "Livre em " + s.DiskName, s.DiskTotalGb > 0 ? (float)(1 - s.DiskFreeGb / s.DiskTotalGb) : -1);
+                s.DiskTotalGb > 0 ? Fmt(s.DiskFreeGb) + "/" + Fmt(s.DiskTotalGb) : "—", "Livre/total GB", s.DiskTotalGb > 0 ? (float)(1 - s.DiskFreeGb / s.DiskTotalGb) : -1);
             Resource(g, new Rectangle(res.X + Theme.S(20) + colW * 3, vy, colW, Theme.S(60)), "services",
                 s.Processes >= 0 ? s.Processes.ToString() : "—", "Processos", -1);
             if (!string.IsNullOrEmpty(s.CpuName) && res.Height > Theme.S(150))
