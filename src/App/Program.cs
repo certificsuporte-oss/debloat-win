@@ -1,11 +1,11 @@
 // Ponto de entrada. Sem argumentos abre a tela; com argumentos roda sem tela.
 //
-//   DebloatWin.exe /preset basico|rigido|extremo [/semponto] [/exportar arquivo.ps1] [/ids id1,id2]
+//   DebloatWin.exe /preset padrao [/semponto] [/exportar arquivo.ps1] [/ids id1,id2]
 //
 // Ao abrir a tela, o programa procura versão nova (Updater.ManifestUrl) e se atualiza sozinho.
 // Para desligar: HKCU\Software\DebloatWin, DWORD AtualizarAuto = 0. A linha de comando não se atualiza.
 //
-//   /preset     marca os ajustes do preset (aplicáveis a este Windows)
+//   /preset     aplica o preset Padrão (só o que vale para este Windows)
 //   /ids        lista de ids a aplicar (soma com o preset, se houver)
 //   /semponto   não cria ponto de restauração
 //   /exportar   só gera o .ps1, não aplica nada
@@ -93,9 +93,10 @@ namespace DebloatWin.App
                 {
                     case "preset":
                         if (next == null) return Usage("faltou o nome do preset");
-                        string p = next.ToLowerInvariant().Replace("á", "a").Replace("í", "i");
-                        level = p == "basico" ? 1 : p == "rigido" ? 2 : p == "extremo" ? 3 : -1;
-                        if (level < 0) return Usage("preset desconhecido: " + next);
+                        string p = next.ToLowerInvariant().Replace("ã", "a").Replace("á", "a").Replace("í", "i");
+                        // basico/rigido/extremo eram os presets antigos: viram o Padrão
+                        level = p == "padrao" || p == "basico" || p == "rigido" || p == "extremo" ? 1 : -1;
+                        if (level < 0) return Usage("preset desconhecido: " + next + " (use /preset padrao)");
                         i++; break;
                     case "ids":
                         if (next == null) return Usage("faltou a lista de ids");
@@ -127,7 +128,7 @@ namespace DebloatWin.App
             foreach (string id in ids) if (!known.Contains(id)) return Usage("id desconhecido: " + id);
             foreach (Tweak t in all)
             {
-                bool want = (level > 0 && t.InPreset(level)) || ids.Contains(t.Id);
+                bool want = (level > 0 && t.Padrao) || ids.Contains(t.Id);
                 if (!want) continue;
                 if (!t.AppliesTo(win.Version) || (t.ProOnly && win.IsHome)) continue;
                 chosen.Add(t);
@@ -212,7 +213,7 @@ namespace DebloatWin.App
         static int Usage(string error)
         {
             if (error != null) Console.WriteLine("Erro: " + error);
-            Console.WriteLine("Uso: DebloatWin.exe /preset basico|rigido|extremo [/ids id1,id2] [/semponto] [/exportar arquivo.ps1]");
+            Console.WriteLine("Uso: DebloatWin.exe /preset padrao [/ids id1,id2] [/semponto] [/exportar arquivo.ps1]");
             Console.WriteLine("     DebloatWin.exe /status   (mostra o que já está aplicado neste PC)");
             Console.WriteLine("Sem argumentos, abre a tela.");
             return 2;

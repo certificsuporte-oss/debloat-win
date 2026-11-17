@@ -96,9 +96,7 @@ namespace DebloatWin.App
             if (Tweak.ProOnly && Applicable) tags.Add("Pro/Enterprise");
             if (!Tweak.IsReversible) tags.Add("Sem desfazer");
             if (Tweak.NeedsRestart) tags.Add("Pede reinício");
-            if (Tweak.Preset == 1) tags.Add("Básico");
-            else if (Tweak.Preset == 2) tags.Add("Rígido");
-            else if (Tweak.Preset == 3) tags.Add("Extremo");
+            if (Tweak.Padrao) tags.Add("Padrão");
             return tags;
         }
 

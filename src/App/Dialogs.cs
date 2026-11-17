@@ -172,7 +172,7 @@ namespace DebloatWin.App
             sb.AppendLine("Categoria: " + CategoryInfo.Title(t.Category));
             sb.AppendLine("Risco: " + Theme.RiskText(t.Risk));
             sb.AppendLine("Windows: " + (t.Windows == WinVersion.Ambos ? "10 e 11" : t.Windows == WinVersion.Win11 ? "só 11" : "só 10"));
-            sb.AppendLine("Preset: " + (t.Preset == 0 ? "nenhum (só manual)" : t.Preset == 1 ? "Básico, Rígido e Extremo" : t.Preset == 2 ? "Rígido e Extremo" : "só Extremo"));
+            sb.AppendLine("Preset Padrão: " + (t.Padrao ? "faz parte" : "não faz parte (só manual)"));
             sb.AppendLine("Desfazer: " + (t.IsReversible ? "sim, pelo Histórico" : "não (ou só em parte)"));
             if (t.NeedsRestart) sb.AppendLine("Pede reinício ou novo login para valer.");
             if (t.ProOnly) sb.AppendLine("Só tem efeito no Windows Pro, Enterprise ou Education.");

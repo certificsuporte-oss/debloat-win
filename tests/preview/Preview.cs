@@ -54,7 +54,7 @@ static class PreviewProgram
             {
                 switch (step++)
                 {
-                    case 0: Shot(f, outDir + "/1-todos.png"); Call(f, "ApplyPreset", 2);
+                    case 0: Shot(f, outDir + "/1-todos.png"); f.GetType().GetMethod("ApplyPreset", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(f, null);
                             if (args.Length > 3 && args[3] == "alternar") { f.GetType().GetMethod("CycleTheme", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(f, null); }
                             break;
                     case 1: Call(f, "SelectCategory", Category.Apps); break;
@@ -67,7 +67,7 @@ static class PreviewProgram
                     case 4: Shot(dlg, outDir + "/4-detalhes.png"); dlg.Close();
                             fakeSys.PowerShellHandler = delegate(string sc) { System.Threading.Thread.Sleep(15); ProcResult pr = new ProcResult(); pr.Output = sc.Contains("Get-AppxPackage") ? "Removido: app" : "SKIP:não se aplica neste PC simulado"; return pr; };
                             Engine eng = new Engine(fakeSys, Engine.DefaultDataDir());
-                            System.Collections.Generic.List<Tweak> sel = Catalog.All().FindAll(delegate(Tweak x) { return x.InPreset(2) && x.AppliesTo(WinVersion.Win11); });
+                            System.Collections.Generic.List<Tweak> sel = Catalog.All().FindAll(delegate(Tweak x) { return x.Padrao && x.AppliesTo(WinVersion.Win11); });
                             ProgressForm pf = null;
                             pf = new ProgressForm("Aplicando ajustes", delegate(ProgressHandler progress, Action<string> log)
                             {

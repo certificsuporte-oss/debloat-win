@@ -28,7 +28,7 @@ Ao abrir, o programa consulta `atualizacao/versao.json` neste repositório. Se h
 ## Como usar
 
 1. Abra o `DebloatWin.exe` e aceite o pedido de administrador.
-2. Escolha um **preset** no menu da esquerda ou marque os ajustes um a um.
+2. Clique em **Padrão** no menu da esquerda ou marque os ajustes um a um.
 3. Clique em **Aplicar**. Por padrão, o programa cria um **ponto de restauração** antes.
 4. Reinicie o computador no final.
 
@@ -48,15 +48,13 @@ Ao abrir, o programa verifica cada ajuste na máquina e mostra uma etiqueta: **�
 - Depois de aplicar ou desfazer, o programa verifica de novo.
 - Limpezas e reparos (Ferramentas) não deixam rastro, então não têm etiqueta.
 
-### Presets
+### Preset Padrão
 
-| Preset | O que entra |
-|---|---|
-| **Básico** | Só ajustes de risco baixo: anúncios, sugestões, telemetria, Recall, Widgets, Inicialização Rápida, serviços pouco usados, manutenção leve. |
-| **Rígido** | Básico + remoção de apps pré-instalados, IA do Windows (Copilot, Paint, Bloco de Notas), mais privacidade e desempenho. |
-| **Extremo** | Rígido + ajustes agressivos: Xbox, OneDrive, SysMain, indexação, efeitos visuais, localização, Relatório de Erros. Revise antes. |
+Um único preset, **Padrão**, com 92 dos 119 ajustes, escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive e Media Player), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
 
-Ajustes de **risco alto** que quebram coisas (remover a Store, desativar o Windows Update, bloquear câmera/microfone, resetar rede, remover IE) ficam **fora de todos os presets**: só entram se marcados à mão.
+O botão **Padrão** marca só o que ainda falta no PC (o que já está aplicado fica de fora). A lista fica em `Catalog.PadraoIds` (`src/Core/Catalog.cs`).
+
+Ficam fora do Padrão, só manualmente: remover a Store, desativar o Windows Update, travar no Windows 10, bloquear câmera/microfone, localização, remover IE/Fax e Scanner, Relatório de Erros, drivers pelo Windows Update, SFC/DISM, resetar rede, entre outros.
 
 ### O que o programa nunca mexe
 
@@ -80,20 +78,20 @@ Arquivos ficam em `C:\ProgramData\DebloatWin\`:
 ## Linha de comando (para o instalador de clientes)
 
 ```
-DebloatWin.exe /preset basico
-DebloatWin.exe /preset rigido /ids ui.dark,ui.seconds
+DebloatWin.exe /preset padrao
+DebloatWin.exe /preset padrao /ids ui.dark,ui.taskview
 DebloatWin.exe /ids tel.diagtrack,priv.adid /semponto
-DebloatWin.exe /preset extremo /exportar C:\temp\debloat.ps1
+DebloatWin.exe /preset padrao /exportar C:\temp\debloat.ps1
 ```
 
-- `/preset basico|rigido|extremo` — marca o preset (só o que vale para este Windows)
+- `/preset padrao` — aplica o preset Padrão (só o que vale para este Windows)
 - `/ids a,b,c` — ajustes específicos (o id aparece em **Ver detalhes**)
 - `/semponto` — não cria ponto de restauração. **Sem essa opção, se o ponto de restauração falhar, nada é aplicado.**
 - `/exportar arquivo.ps1` — só gera o script, não aplica
 - `/status` — lista o que já está aplicado, parcial ou pendente neste PC
 
 Códigos de saída: `0` ok · `1` alguma falha · `2` argumento inválido · `3` sem administrador.
-Em um `.bat`, use `start /wait DebloatWin.exe /preset basico` para esperar terminar e ler o `%ERRORLEVEL%`.
+Em um `.bat`, use `start /wait DebloatWin.exe /preset padrao` para esperar terminar e ler o `%ERRORLEVEL%`.
 
 ## Compilar
 
@@ -115,7 +113,7 @@ res/        ícone, manifesto (administrador + DPI) e informações de versão
 Em `src/Core/Catalog.cs`, copie um bloco parecido:
 
 ```csharp
-T("priv.exemplo", c, 2, Risk.Baixo, "Título curto", "O que muda para o usuário.")
+T("priv.exemplo", c, Risk.Baixo, "Título curto", "O que muda para o usuário.")
   .Dw(@"HKCU\Software\...\Chave", "NomeDoValor", 0)     // DWORD
   .Sz(@"HKLM\SOFTWARE\...\Chave", "Nome", "texto")       // texto
   .Svc("NomeDoServico", StartMode.Manual)                // serviço
@@ -125,12 +123,12 @@ T("priv.exemplo", c, 2, Risk.Baixo, "Título curto", "O que muda para o usuário
   .Warn("Aviso que aparece em destaque.");
 ```
 
-O 3º parâmetro é o preset: `0` só manual · `1` Básico em diante · `2` Rígido em diante · `3` só Extremo.
-Rode os testes (`./build.sh`): eles conferem ids únicos, presets, avisos em ajustes de risco alto, serviços protegidos, e que aplicar e desfazer devolvem o registro exatamente ao original.
+Para colocar no preset Padrão, inclua o id em `Catalog.PadraoIds`.
+Rode os testes (`./build.sh`): eles conferem ids únicos, a lista do Padrão, avisos em ajustes de risco alto, serviços protegidos, e que aplicar e desfazer devolvem o registro exatamente ao original.
 
 ## Situação dos testes
 
-- 1.549 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
+- 1.495 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
 - 60 scripts PowerShell gerados (incluindo o de detecção) passam na checagem estrutural (chaves, parênteses, aspas).
 - Tela testada no Mono com Windows 10 e 11 simulados.
 - **Ainda não foi executado num Windows real.** Teste primeiro numa máquina virtual ou num PC de teste antes de usar em clientes.

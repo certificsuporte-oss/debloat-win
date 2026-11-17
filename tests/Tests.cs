@@ -47,7 +47,7 @@ namespace DebloatWin.Tests
             List<Tweak> all = Catalog.All();
             Console.WriteLine("  ajustes: " + all.Count);
             HashSet<string> ids = new HashSet<string>();
-            int[] presetCount = new int[4];
+            int padraoCount = 0;
 
             // Serviços que nunca podem ser mexidos: impressão, token/cartão (A3), acesso remoto, rede básica, hora
             HashSet<string> protectedServices = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
@@ -61,12 +61,9 @@ namespace DebloatWin.Tests
                 Check(!string.IsNullOrEmpty(t.Title) && t.Title.Length <= 70, "título ok (≤70): " + t.Id);
                 Check(!string.IsNullOrEmpty(t.Description), "descrição: " + t.Id);
                 Check(t.Actions.Count > 0, "tem ações: " + t.Id);
-                Check(t.Preset >= 0 && t.Preset <= 3, "preset válido: " + t.Id);
                 Check(t.Id.Contains("."), "id com prefixo de categoria: " + t.Id);
                 if (t.Risk == Risk.Alto) Check(t.Warning != null, "ajuste de risco Alto tem aviso: " + t.Id);
-                if (t.Risk == Risk.Alto) Check(t.Preset == 0 || t.Preset == 3, "risco Alto só manual ou Extremo: " + t.Id);
-                if (t.Preset == 1) Check(t.Risk == Risk.Baixo, "Básico só tem risco Baixo: " + t.Id);
-                presetCount[t.Preset]++;
+                if (t.Padrao) padraoCount++;
                 foreach (TweakAction a in t.Actions)
                 {
                     ServiceStartAction s = a as ServiceStartAction;
@@ -79,9 +76,13 @@ namespace DebloatWin.Tests
                     Check(!t.IsReversible || t.Actions.TrueForAll(delegate(TweakAction x) { return x is RegSetAction; }),
                           "ferramentas não fingem ter desfazer: " + t.Id);
             }
-            int basic = presetCount[1], strict = basic + presetCount[2], extreme = strict + presetCount[3];
-            Console.WriteLine(string.Format("  presets: Básico={0} Rígido={1} Extremo={2} Manual={3}", basic, strict, extreme, presetCount[0]));
-            Check(basic >= 15 && strict > basic && extreme > strict, "presets crescem do Básico ao Extremo");
+            Console.WriteLine("  preset Padrão: " + padraoCount + " ajustes");
+            HashSet<string> catalogIds = new HashSet<string>();
+            foreach (Tweak t in all) catalogIds.Add(t.Id);
+            foreach (string id in Catalog.PadraoIds) Check(catalogIds.Contains(id), "id do Padrão existe no catálogo: " + id);
+            Check(padraoCount == Catalog.PadraoIds.Length && padraoCount == 92, "Padrão tem os 92 ajustes combinados");
+            foreach (string id in new string[] { "apps.store", "upd.disable", "priv.camera", "priv.mic", "tool.netreset", "apps.ie" })
+                Check(!Array.Exists(Catalog.PadraoIds, delegate(string x) { return x == id; }), "fora do Padrão: " + id);
             foreach (Category c in Enum.GetValues(typeof(Category)))
                 Check(all.Exists(delegate(Tweak t) { return t.Category == c; }), "categoria com itens: " + c);
         }

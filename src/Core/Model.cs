@@ -10,7 +10,7 @@ namespace DebloatWin.Core
     {
         // Troque aqui para renomear o programa.
         public const string Name = "Debloat Win";
-        public const string Version = "1.3.3";
+        public const string Version = "1.4.0";
         public const string DataFolderName = "DebloatWin";
     }
 
@@ -88,7 +88,7 @@ namespace DebloatWin.Core
         public string Warning;            // aviso exibido em destaque (opcional)
         public Risk Risk = Risk.Baixo;
         public WinVersion Windows = WinVersion.Ambos;
-        public int Preset;                // 0 = nenhum, 1 = Básico+, 2 = Rígido+, 3 = só Extremo
+        public bool Padrao;               // faz parte do preset Padrão (lista em Catalog.PadraoIds)
         public bool NeedsRestart;
         public bool ProOnly;              // política que só vale no Pro/Enterprise
         public List<TweakAction> Actions = new List<TweakAction>();
@@ -108,10 +108,6 @@ namespace DebloatWin.Core
             return (Windows & current) != 0;
         }
 
-        public bool InPreset(int level)
-        {
-            return Preset > 0 && Preset <= level;
-        }
     }
 
     public enum ActionOutcome

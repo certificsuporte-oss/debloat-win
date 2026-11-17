@@ -41,8 +41,7 @@ namespace DebloatWin.App
         UserPreferenceChangedEventHandler systemThemeHandler;
         FlatButton applyBtn, exportBtn;
         LinkLabel checkVisible, uncheckVisible;
-        readonly FlatButton[] presetButtons = new FlatButton[3];
-        static readonly string[] presetNames = { "Básico", "Rígido", "Extremo" };
+        FlatButton presetButton;
         ToolTip tips = new ToolTip();
         Timer searchTimer;
 
@@ -96,13 +95,10 @@ namespace DebloatWin.App
             UpdateStatuses();
             Shown += delegate { StartSlowDetection(); };
 
-            // quantos ajustes de cada preset valem neste Windows
-            for (int i = 0; i < 3; i++)
-            {
-                int n = 0;
-                foreach (TweakRow r in rows) if (r.Applicable && r.Tweak.InPreset(i + 1)) n++;
-                presetButtons[i].Text = presetNames[i] + "  ·  " + n + " ajustes";
-            }
+            // quantos ajustes do Padrão valem neste Windows
+            int inPadrao = 0;
+            foreach (TweakRow r in rows) if (r.Applicable && r.Tweak.Padrao) inPadrao++;
+            presetButton.Text = "Padrão  ·  " + inPadrao + " ajustes";
 
             SelectCategory("todos");
             UpdateSummary();
@@ -281,25 +277,14 @@ namespace DebloatWin.App
             };
 
             int y = Theme.S(12);
-            y = SideLabel("PRESETS", y);
-            string[] desc = {
-                "Só ajustes seguros: privacidade, anúncios, telemetria e manutenção leve. Bom ponto de partida para qualquer PC.",
-                "Básico + remove apps pré-instalados, IA do Windows, mais privacidade e desempenho.",
-                "Tudo do Rígido + ajustes agressivos (Xbox, OneDrive, serviços, efeitos visuais). Revise antes de aplicar." };
-            for (int i = 0; i < 3; i++)
-            {
-                int level = i + 1;
-                FlatButton b = new FlatButton(presetNames[i], false);
-                presetButtons[i] = b;
-                b.Font = Theme.Body;
-                b.Location = new Point(Theme.S(16), y);
-                b.Width = Theme.S(218);
-                b.TextAlign = ContentAlignment.MiddleLeft;
-                b.Click += delegate { ApplyPreset(level); };
-                tips.SetToolTip(b, desc[i]);
-                sidebar.Controls.Add(b);
-                y += b.Height + Theme.S(6);
-            }
+            y = SideLabel("PRESET", y);
+            presetButton = new FlatButton("Padrão", true);
+            presetButton.Location = new Point(Theme.S(16), y);
+            presetButton.Width = Theme.S(218);
+            presetButton.Click += delegate { ApplyPreset(); };
+            tips.SetToolTip(presetButton, "Marca os ajustes do preset Padrão que ainda faltam neste PC. Revise e clique em Aplicar.");
+            sidebar.Controls.Add(presetButton);
+            y += presetButton.Height + Theme.S(6);
             LinkLabel clear = new LinkLabel();
             clearLink = clear;
             clear.Text = "Limpar seleção";
@@ -535,7 +520,7 @@ namespace DebloatWin.App
             else if (currentCategory.Equals("todos"))
             {
                 catTitle.Text = "Todos os ajustes";
-                catSubtitle.Text = all.Count + " ajustes. Marque um a um ou use um preset no menu ao lado.";
+                catSubtitle.Text = all.Count + " ajustes. Marque um a um ou use o preset Padrão no menu ao lado.";
             }
             else
             {
@@ -600,20 +585,19 @@ namespace DebloatWin.App
             }
         }
 
-        void ApplyPreset(int level)
+        void ApplyPreset()
         {
             int n = 0, done = 0;
             foreach (TweakRow r in rows)
             {
-                bool inPreset = r.Applicable && r.Tweak.InPreset(level);
+                bool inPreset = r.Applicable && r.Tweak.Padrao;
                 if (inPreset && r.AlreadyApplied) done++;
                 r.Checked = inPreset && !r.AlreadyApplied;
                 if (r.Checked) n++;
             }
-            string name = level == 1 ? "Básico" : level == 2 ? "Rígido" : "Extremo";
             Flash(done > 0
-                ? string.Format("Preset {0}: {1} pendentes marcados ({2} já estavam aplicados).", name, n, done)
-                : "Preset " + name + " marcado. Revise e clique em Aplicar.");
+                ? string.Format("Padrão: {0} pendentes marcados ({1} já estavam aplicados).", n, done)
+                : "Padrão marcado. Revise e clique em Aplicar.");
         }
 
         string flashText;
