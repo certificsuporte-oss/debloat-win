@@ -80,7 +80,7 @@ namespace DebloatWin.Tests
             HashSet<string> catalogIds = new HashSet<string>();
             foreach (Tweak t in all) catalogIds.Add(t.Id);
             foreach (string id in Catalog.PadraoIds) Check(catalogIds.Contains(id), "id do Padrão existe no catálogo: " + id);
-            Check(padraoCount == Catalog.PadraoIds.Length && padraoCount == 98, "Padrão tem os 92 ajustes + 5 programas + apps padrão");
+            Check(padraoCount == Catalog.PadraoIds.Length && padraoCount == 101, "Padrão tem os 92 ajustes + 5 programas + apps padrão + drivers e atualizações");
             int apps = 0;
             foreach (Tweak t in all)
                 foreach (TweakAction a in t.Actions)
@@ -98,6 +98,7 @@ namespace DebloatWin.Tests
             Check(apps == 5, "5 programas no catálogo");
             foreach (string id in new string[] { "apps.store", "upd.disable", "priv.camera", "priv.mic", "tool.netreset", "apps.ie" })
                 Check(!Array.Exists(Catalog.PadraoIds, delegate(string x) { return x == id; }), "fora do Padrão: " + id);
+            Check(all[all.Count - 1].Id == "fim.windowsupdate", "Windows Update é o último item da lista");
             foreach (Category c in Enum.GetValues(typeof(Category)))
                 Check(all.Exists(delegate(Tweak t) { return t.Category == c; }), "categoria com itens: " + c);
         }

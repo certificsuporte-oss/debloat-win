@@ -154,6 +154,7 @@ namespace DebloatWin.App
             int x = TextX;
             string stLabel = Applicable && status != null ? status.Label : null;
             if (stLabel != null && status.State == TweakState.Applied && Tweak.Actions.Exists(delegate(TweakAction a) { return a is WingetInstallAction; })) stLabel = "✓ Já instalado";
+            else if (stLabel != null && status.State == TweakState.Applied && Tweak.Id == "fim.driverssdio") stLabel = "✓ Nenhum sem driver";
             if (stLabel != null)
             {
                 Color sf = Theme.TagFg, sb = Theme.TagBg;

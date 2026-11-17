@@ -63,9 +63,19 @@ A categoria **Instalar programas** tem só o básico: **Google Chrome, WinRAR, V
 - **Usuário atual:** se ainda faltar, abre **Configurações > Aplicativos padrão** (no Windows 11, direto na página do VLC/Adobe) para você só confirmar. A situação do ajuste mostra se já está certo.
 - **Desfazer** volta o arquivo de associações original do Windows (guardado em `C:\ProgramData\DebloatWin`).
 
+### Drivers e atualizações
+
+Última categoria da lista, e também a última a rodar, porque é a mais demorada:
+
+1. **Instalar drivers pelo Windows Update**: drivers assinados pela Microsoft, pela API do próprio Windows (Windows Update Agent).
+2. **Instalar drivers que ainda faltarem (SDIO)**: se algum dispositivo continuar sem driver (códigos 1, 18 ou 28 do Gerenciador de Dispositivos), instala o Snappy Driver Installer Origin pelo winget e roda o script dele com `select missing`. Instala só o que falta e não troca drivers que já funcionam. Se não faltar nada, não baixa nada. Os pacotes baixados são apagados no fim e o log lista o que continuou sem driver.
+3. **Instalar atualizações do Windows**: segurança, cumulativas, .NET e Defender. Não instala prévias opcionais nem atualizações de versão.
+
+Nenhum deles tem desfazer. O Windows Update não reinicia o PC sozinho: o log avisa quando precisar.
+
 ### Preset Padrão
 
-Um único preset, **Padrão**, com 92 dos 119 ajustes mais os 5 programas (Google Chrome, WinRAR, VLC, AnyDesk e Adobe Acrobat Reader) e o VLC/Adobe como padrão, escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive e Media Player), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
+Um único preset, **Padrão**, com 92 dos 119 ajustes mais os 5 programas (Google Chrome, WinRAR, VLC, AnyDesk e Adobe Acrobat Reader), o VLC/Adobe como padrão e, por último, drivers e Windows Update, escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive e Media Player), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
 
 O botão **Padrão** marca só o que ainda falta no PC (o que já está aplicado fica de fora). A lista fica em `Catalog.PadraoIds` (`src/Core/Catalog.cs`).
 
@@ -143,8 +153,8 @@ Rode os testes (`./build.sh`): eles conferem ids únicos, a lista do Padrão, av
 
 ## Situação dos testes
 
-- 1.571 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
-- 72 scripts PowerShell gerados (incluindo os de detecção e de instalação de programas) passam na checagem estrutural (chaves, parênteses, aspas).
+- 1.600 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
+- 75 scripts PowerShell gerados (incluindo os de detecção e de instalação de programas) passam na checagem estrutural (chaves, parênteses, aspas).
 - Tela testada no Mono com Windows 10 e 11 simulados.
 - **Ainda não foi executado num Windows real.** Teste primeiro numa máquina virtual ou num PC de teste antes de usar em clientes.
 
