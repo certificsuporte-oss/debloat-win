@@ -1,6 +1,6 @@
 {
-  "versao": "1.3.2",
-  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/cddb2de80582c095248a7c6d7d1e20ff23e8c861/atualizacao/DebloatWin.exe",
-  "sha256": "fd050fd26ce2778c49196f9b386a51d4258d4897beabe00c1b550fce06e40e63",
-  "notas": "A caixa de seleção fica verde (já aplicado) ou amarela (parcial). Inclui as correções de remoção de apps e do OneDrive da 1.3.1."
+  "versao": "1.3.3",
+  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/6305d4ee5c1f59d1b5510818f108e0b5e8ce4bcb/atualizacao/DebloatWin.exe",
+  "sha256": "57c4806bd1d3d60f1dda2858d87c8fae99cf28db5c3537287fea1414bd615d3e",
+  "notas": "O cartão inteiro dos ajustes já aplicados fica levemente verde (parciais: amarelo)."
 }
