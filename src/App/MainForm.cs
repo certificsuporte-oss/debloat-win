@@ -169,6 +169,11 @@ namespace DebloatWin.App
         {
             Detector d = detector;
             List<Tweak> list = ApplicableTweaks();
+            d.PartialDone = delegate
+            {
+                if (IsHandleCreated && !IsDisposed)
+                    BeginInvoke((MethodInvoker)delegate { if (d == detector) UpdateStatuses(); });
+            };
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
                 d.DetectSlow(list, 240);
@@ -774,7 +779,8 @@ namespace DebloatWin.App
                 if (r.AlreadyApplied) d.Applied++; else d.Pending++;
                 if (r.Status != null && r.Status.State == TweakState.Checking) d.Checking = true;
                 if (r.Tweak.Id == "fim.driverssdio")
-                    d.DriverState = r.Status == null ? -1 : r.Status.State == TweakState.Applied ? 1 : r.Status.State == TweakState.NotApplied ? 0 : -1;
+                    d.DriverState = r.Status == null || r.Status.State == TweakState.Checking ? -1
+                        : r.Status.State == TweakState.Applied ? 1 : r.Status.State == TweakState.NotApplied ? 0 : -2;
             }
             AddArea(d, "Debloat", "debloat", delegate(Tweak t) { return t.Category == Category.Apps; });
             foreach (Category c in new Category[] { Category.Privacidade, Category.Telemetria, Category.Atualizacoes, Category.Desempenho, Category.Jogos, Category.Interface })

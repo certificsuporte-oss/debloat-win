@@ -24,7 +24,7 @@ namespace DebloatWin.App
         public string Machine = "", Edition = "", Version = "";
         public int Applied, Pending, OtherWindows;
         public bool Checking;
-        public int DriverState; // 1 = nenhum sem driver, 0 = há dispositivos sem driver, -1 = verificando
+        public int DriverState; // 1 = nenhum sem driver, 0 = há dispositivos sem driver, -1 = verificando, -2 = sem leitura
         public List<DashArea> Areas = new List<DashArea>();
         public List<DashActivity> Activities = new List<DashActivity>();
         public SystemSnapshot Stats;
@@ -125,9 +125,9 @@ namespace DebloatWin.App
             Stat(g, new Rectangle(x0 + (cw + Gap), y, cw, ch), "file", "VERSÃO", Data.Version, "Versão e build do Windows", null, 0);
             Stat(g, new Rectangle(x0 + (cw + Gap) * 2, y, cw, ch), "shield", "STATUS GERAL", status, statusSub,
                 Data.Pending == 0 ? "Em dia" : "Atenção", Data.Pending == 0 ? 1 : 2);
-            string drv = Data.DriverState == 1 ? "0 sem driver" : Data.DriverState == 0 ? "Faltam drivers" : "Verificando…";
+            string drv = Data.DriverState == 1 ? "0 sem driver" : Data.DriverState == 0 ? "Faltam drivers" : Data.DriverState == -2 ? "Sem leitura" : "Verificando…";
             Stat(g, new Rectangle(x0 + (cw + Gap) * 3, y, cw, ch), "drive", "DRIVERS", drv,
-                Data.DriverState == 0 ? "Veja em Ferramentas" : "Gerenciador de Dispositivos",
+                Data.DriverState == 0 ? "Veja em Ferramentas" : Data.DriverState == -2 ? "Não deu para verificar agora" : "Gerenciador de Dispositivos",
                 Data.DriverState == 1 ? "✓ Completo" : Data.DriverState == 0 ? "Pendente" : null, Data.DriverState == 1 ? 1 : 2);
             y += ch + Gap;
 

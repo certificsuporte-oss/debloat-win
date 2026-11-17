@@ -119,32 +119,45 @@ namespace DebloatWin.Core
             return sb.ToString();
         }
 
-        /// <summary>Verificações que precisam de PowerShell (apps, tarefas, recursos, energia), numa execução só.</summary>
+        /// <summary>Chamado (em segundo plano) quando a primeira leva de verificações termina.</summary>
+        public Action PartialDone;
+
+        /// <summary>
+        /// Verificações que precisam de PowerShell, em duas levas: primeiro as rápidas (apps, tarefas, recursos,
+        /// energia, drivers…), depois as que dependem do winget, que é o mais lento e às vezes demora a responder.
+        /// </summary>
         public void DetectSlow(IEnumerable<Tweak> tweaks, int timeoutSeconds)
         {
-            List<TweakAction> pending = new List<TweakAction>();
+            List<TweakAction> fast = new List<TweakAction>(), winget = new List<TweakAction>();
             foreach (Tweak t in tweaks)
                 foreach (TweakAction a in t.Actions)
                 {
                     bool known;
                     lock (gate) known = results.ContainsKey(a);
-                    if (!known && a.DetectScript() != null) pending.Add(a);
+                    string ds = a.DetectScript();
+                    if (known || ds == null) continue;
+                    if (ds.Contains("Get-DbwWingetIds")) winget.Add(a); else fast.Add(a);
                 }
 
-            if (pending.Count > 0)
-            {
-                ProcResult r = null;
-                try { r = sys.RunPowerShell(BuildScript(pending), timeoutSeconds); }
-                catch { }
-                Dictionary<int, DetectState> parsed = Parse(r == null ? null : r.Output);
-                lock (gate)
-                    for (int i = 0; i < pending.Count; i++)
-                    {
-                        DetectState s;
-                        results[pending[i]] = parsed.TryGetValue(i, out s) ? s : DetectState.Unknown;
-                    }
-            }
+            RunBatch(fast, timeoutSeconds);
+            if (PartialDone != null && winget.Count > 0) { try { PartialDone(); } catch { } }
+            RunBatch(winget, timeoutSeconds);
             lock (gate) slowDone = true;
+        }
+
+        void RunBatch(List<TweakAction> pending, int timeoutSeconds)
+        {
+            if (pending.Count == 0) return;
+            ProcResult r = null;
+            try { r = sys.RunPowerShell(BuildScript(pending), timeoutSeconds); }
+            catch { }
+            Dictionary<int, DetectState> parsed = Parse(r == null ? null : r.Output);
+            lock (gate)
+                for (int i = 0; i < pending.Count; i++)
+                {
+                    DetectState st;
+                    results[pending[i]] = parsed.TryGetValue(i, out st) ? st : DetectState.Unknown;
+                }
         }
 
         public static Dictionary<int, DetectState> Parse(string output)
