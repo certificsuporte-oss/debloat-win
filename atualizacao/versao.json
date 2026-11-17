@@ -1,6 +1,6 @@
 {
-  "versao": "1.9.0",
-  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/dfc2a8a9d00c6718008ee0614ae79b6bade4358c/atualizacao/DebloatWin.exe",
-  "sha256": "28f06e92e9f242a18d8b3c97496253ca5455fdbed2fb79bf30539ed332fe946c",
+  "versao": "1.9.1",
+  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/cba0641a103a5ffd038b0d8528151f4972cf3559/atualizacao/DebloatWin.exe",
+  "sha256": "3d13aaf36ab46cf1c02ec95e51bfa00675a9818c8d0e3337a7ce1064b76ddb63",
   "notas": ""
 }
