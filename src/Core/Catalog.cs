@@ -117,7 +117,7 @@ namespace DebloatWin.Core
             "ui.stickykeys", "ui.bsod", "ui.verbose", "ui.taskbarleft", "ui.seconds", "tool.temp",
             "tool.wucache", "tool.recycle",
             // programas (Instalar programas)
-            "app.googlechrome", "app.winrar", "app.vlc", "app.anydesk", "app.netdesktopruntime8", "app.netdesktopruntime9"
+            "app.googlechrome", "app.winrar", "app.vlc", "app.anydesk", "app.adobeacrobatreader", "app.padroes"
         };
 
         static Tweak T(string id, Category cat, Risk risk, string title, string description)
@@ -141,6 +141,7 @@ namespace DebloatWin.Core
             Interface();
             Ferramentas();
             Programas();   // CatalogApps.cs (gerado de tools/apps.tsv)
+            AppsPadrao();  // CatalogDefaults.cs (depois dos programas: precisa deles instalados)
             List<Tweak> r = list;
             list = null;
             HashSet<string> padrao = new HashSet<string>(PadraoIds);

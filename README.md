@@ -50,16 +50,22 @@ Ao abrir, o programa verifica cada ajuste na máquina e mostra uma etiqueta: **�
 
 ### Instalar programas
 
-A categoria **Instalar programas** tem 89 programas populares (navegadores, comunicação, escritório e PDF, compactadores, multimídia, acesso remoto, nuvem, utilitários, bibliotecas como Visual C++/.NET/Java, jogos e desenvolvimento), instalados em silêncio pelo **winget**, sempre na versão mais nova do fabricante.
+A categoria **Instalar programas** tem só o básico: **Google Chrome, WinRAR, VLC, AnyDesk e Adobe Acrobat Reader**, instalados em silêncio pelo **winget**, sempre na versão mais nova do fabricante. Depois deles vem **VLC para vídeos e Adobe para PDF**, que deixa os dois como aplicativos padrão.
 
 - Os já instalados aparecem como **✓ Já instalado** (cartão verde).
 - Se o winget ainda não estiver ativo (comum num Windows 10 recém-instalado), o programa registra o "Instalador de Aplicativo" antes. Se não houver, avisa para atualizá-lo pela Microsoft Store.
 - **Desfazer** desinstala só o que o Debloat Win instalou; um programa que já estava no PC nunca é removido.
-- A lista fica em `tools/apps.tsv` (grupo, nome, id do winget, descrição). Para incluir um programa: acrescente a linha (confira o id em github.com/microsoft/winget-pkgs) e rode `python3 tools/gerar_apps.py`, que gera `src/Core/CatalogApps.cs`. Os ids foram conferidos no repositório oficial do winget; a lista do WinUtil (licença MIT) serviu de referência.
+- A lista fica em `tools/apps.tsv` (grupo, nome, id do winget, descrição). Para incluir um programa: acrescente a linha e rode `python3 tools/gerar_apps.py`, que gera `src/Core/CatalogApps.cs`. Em `tools/apps-completo.tsv` estão 89 programas com ids já conferidos no repositório oficial do winget: é só copiar a linha desejada.
+
+**Aplicativos padrão (limite do Windows).** Desde fevereiro de 2024 o Windows tem um driver (UCPD.sys) que impede qualquer programa de gravar a escolha do usuário para PDF e para o navegador. O Debloat Win faz o que é permitido:
+
+- **Usuários novos do PC:** importa as associações pelo DISM (`/Import-DefaultAppAssociations`), mesclando com as do Windows. Quem entrar no PC pela primeira vez já abre vídeos no VLC e PDF no Adobe.
+- **Usuário atual:** se ainda faltar, abre **Configurações > Aplicativos padrão** (no Windows 11, direto na página do VLC/Adobe) para você só confirmar. A situação do ajuste mostra se já está certo.
+- **Desfazer** volta o arquivo de associações original do Windows (guardado em `C:\ProgramData\DebloatWin`).
 
 ### Preset Padrão
 
-Um único preset, **Padrão**, com 92 dos 119 ajustes mais 6 programas (Google Chrome, WinRAR, VLC, AnyDesk e .NET Desktop Runtime 8 e 9), escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive e Media Player), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
+Um único preset, **Padrão**, com 92 dos 119 ajustes mais os 5 programas (Google Chrome, WinRAR, VLC, AnyDesk e Adobe Acrobat Reader) e o VLC/Adobe como padrão, escolhidos pensando num Windows recém-instalado e limpo: remoção de apps pré-instalados (inclusive Xbox, OneDrive e Media Player), Copilot/Recall/IA, privacidade, telemetria, Windows Update sem reinício forçado e sem P2P, desempenho (Desempenho Máximo, sem hibernação, sem SysMain/indexação, efeitos visuais mínimos), ajustes de jogos e de interface, e limpeza de temporários, cache do Update e Lixeira.
 
 O botão **Padrão** marca só o que ainda falta no PC (o que já está aplicado fica de fora). A lista fica em `Catalog.PadraoIds` (`src/Core/Catalog.cs`).
 
@@ -137,8 +143,8 @@ Rode os testes (`./build.sh`): eles conferem ids únicos, a lista do Padrão, av
 
 ## Situação dos testes
 
-- 2.572 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
-- 238 scripts PowerShell gerados (incluindo os de detecção e de instalação de programas) passam na checagem estrutural (chaves, parênteses, aspas).
+- 1.571 verificações automáticas passando (catálogo, aplicar/desfazer com registro simulado, serviços, leitura da saída do PowerShell, backup em JSON, exportação, atualização automática, detecção do que já está aplicado).
+- 72 scripts PowerShell gerados (incluindo os de detecção e de instalação de programas) passam na checagem estrutural (chaves, parênteses, aspas).
 - Tela testada no Mono com Windows 10 e 11 simulados.
 - **Ainda não foi executado num Windows real.** Teste primeiro numa máquina virtual ou num PC de teste antes de usar em clientes.
 

@@ -57,5 +57,4 @@ out += ["        }", "    }", "}", ""]
 (ROOT / "src" / "Core" / "CatalogApps.cs").write_text("\n".join(out), encoding="utf-8")
 print(f"{len(rows)} programas gerados em src/Core/CatalogApps.cs")
 for (group, name, pid, desc, appx), tid in zip(rows, ids):
-    if name in ("Google Chrome", "WinRAR", "VLC", "AnyDesk") or "NET Desktop" in name:
-        print("  ", tid, "=", name)
+    print("  ", tid, "=", name)

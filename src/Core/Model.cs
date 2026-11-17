@@ -10,7 +10,7 @@ namespace DebloatWin.Core
     {
         // Troque aqui para renomear o programa.
         public const string Name = "Debloat Win";
-        public const string Version = "1.5.0";
+        public const string Version = "1.6.0";
         public const string DataFolderName = "DebloatWin";
     }
 
@@ -73,7 +73,7 @@ namespace DebloatWin.Core
                 case Category.Jogos: return "Ajustes voltados a jogos e latência.";
                 case Category.Interface: return "Explorer, barra de tarefas e preferências visuais.";
                 case Category.Ferramentas: return "Manutenção e reparo. Executam uma vez e não têm desfazer.";
-                case Category.Programas: return "Instalados pelo winget, sempre na versão mais nova do fabricante. Desfazer só remove o que este app instalou.";
+                case Category.Programas: return "Instalados pelo winget, na versão mais nova. Desfazer só remove o que este app instalou.";
             }
             return "";
         }
