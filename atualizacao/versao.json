@@ -1,0 +1,6 @@
+{
+  "versao": "1.2.0",
+  "url": "https://raw.githubusercontent.com/certificsuporte-oss/debloat-win/518ec94e7034a69bd1cdc107b80e764328c02047/atualizacao/DebloatWin.exe",
+  "sha256": "a62707cf4b55b14f7d2e34ae33e0db442e31ae2a375f0a0150a4c4d16e08cf22",
+  "notas": "Atualização automática: ao abrir, o programa baixa e instala sozinho a versão mais nova. Inclui o modo escuro nativo da 1.1.0."
+}
